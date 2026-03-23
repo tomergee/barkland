@@ -105,7 +105,7 @@ def main(args):
                 continue
 
             if service_name == ".":
-                service_name = "agent-sandbox-controller"
+                service_name = os.path.basename(os.path.abspath(os.getcwd()))
 
             print(f"--- Found Dockerfile at: {dockerfile_path}")
             print(f"--- Service Name: {service_name}")

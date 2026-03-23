@@ -2,6 +2,11 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from typing import Dict, List
 import asyncio
+import os
+import random
+
+# Seed early so module-level static declarations roll deterministically
+random.seed(int(os.getenv("SEED", "42")))
 from barkland.config import SimulationConfig
 from barkland.engine.simulation import SimulationLoop
 from barkland.models.dog import DogProfile, Personality, DogState
