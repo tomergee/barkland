@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: barkland-orchestrator
+  namespace: barkland
+spec:
+  replicas: 1 # Single orchestrator replica to maintain simulation loop state in memory
+  selector:
+    matchLabels:
+      app: barkland
+      component: orchestrator
+  template:
+    metadata:
+      labels:
+        app: barkland
+        component: orchestrator
+    spec:
+      containers:
+        - name: orchestrator
+          image: us-central1-docker.pkg.dev/gke-ai-eco-dev/barkland/barkland:latest
+          ports:
+            - containerPort: 8000
+          env:
+            # - name: GEMINI_API_KEY
+            #   valueFrom:
+            #     secretKeyRef:
+            #       name: gemini-api-key
+            #       key: GEMINI_API_KEY
+            # # NOTE: If the above is commented out, it uses Workload Identity (Vertex AI).
+            - name: PORT
+              value: "8000"
+          resources:
+            requests:
+              cpu: "1"
+              memory: "2Gi"
+            limits:
+              cpu: "1"
+              memory: "2Gi"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: barkland-orchestrator
+  namespace: barkland
+spec:
+  type: LoadBalancer # Expose externally for Web UI and states streaming
+  selector:
+    app: barkland
+    component: orchestrator
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000

@@ -1,0 +1,26 @@
+apiVersion: extensions.agents.x-k8s.io/v1alpha1
+kind: SandboxTemplate
+metadata:
+  name: dog-agent-template
+  namespace: barkland
+spec:
+  podTemplate:
+    spec:
+      runtimeClassName: gvisor # Enables GKE Sandbox (gvisor) on Autopilot
+      containers:
+        - name: agent
+          image: us-central1-docker.pkg.dev/gke-ai-eco-dev/barkland/barkland:latest
+          env:
+            # - name: GEMINI_API_KEY
+            #   valueFrom:
+            #     secretKeyRef:
+            #       name: gemini-api-key
+            #       key: GEMINI_API_KEY
+            # # NOTE: If the above is commented out, it uses Workload Identity (Vertex AI).
+          resources:
+            requests:
+              cpu: "4"
+              memory: "4Gi"
+            limits:
+              cpu: "4"
+              memory: "4Gi"
