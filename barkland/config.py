@@ -5,6 +5,7 @@ import os
 
 @dataclass
 class SimulationConfig:
+    # for use with barkland-app.yaml
     num_dogs: int = int(os.getenv("NUM_DOGS", 5))
     num_ticks: int = int(os.getenv("NUM_TICKS", 10))
     speed_ms: int = int(os.getenv("SPEED_MS", 30))  # delay between ticks in milliseconds

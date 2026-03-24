@@ -173,41 +173,41 @@ async def run_simulation(names: List[str]):
         
         # Trigger Pause/Resume operations based on State transitions
         for name, dog in sim.dogs.items():
-             client = sandbox_clients.get(name)
-             if client and getattr(client, "is_ready", lambda: False)():
-                  if dog.state == DogState.SLEEPING:
-                       if not getattr(client, "is_paused", False):
-                            try:
-                                 client.pause()
-                                 client.is_paused = True
-                                 print(f"Paused sandbox for dog {name}")
-                            except Exception as e:
-                                 print(f"Failed to pause sandbox for {name}: {e}")
-                  else:
-                       if getattr(client, "is_paused", False):
-                            try:
-                                 client.resume()
-                                 client.is_paused = False
-                                 print(f"Resumed sandbox for dog {name}")
-                            except Exception as e:
-                                 print(f"Failed to resume sandbox for {name}: {e}")
+            client = sandbox_clients.get(name)
+            if client and getattr(client, "is_ready", lambda: False)():
+                if dog.state == DogState.SLEEPING:
+                    if not getattr(client, "is_paused", False):
+                        try:
+                            client.is_paused = True # eagerly mark
+                            print(f"Pausing sandbox for dog {name} in background...")
+                            # Run synchronous network request in background thread
+                            threading.Thread(target=client.pause, daemon=True).start()
+                        except Exception as e:
+                            print(f"Failed to initiate pause for {name}: {e}")
+                else:
+                    if getattr(client, "is_paused", False):
+                        try:
+                            client.is_paused = False # eagerly mark
+                            print(f"Resuming sandbox for dog {name} in background...")
+                            # Run synchronous network request in background thread
+                            threading.Thread(target=client.resume, daemon=True).start()
+                        except Exception as e:
+                            print(f"Failed to initiate resume for {name}: {e}")
 
-        # Trigger Whirlwind Talking lines every 3 tick cycles to avoid saturating limits too tightly
-
+        # Trigger Whirlwind Talking lines every 3 tick cycles
         if sim.tick_count > 5 and sim.tick_count % 3 == 0:
-             tasks = []
-             for name, dog in sim.dogs.items():
-                  agent = dog_agents.get(name)
-                  if agent:
-                       async def speak_and_update(a_dog, an_agent):
-                           try:
-                               res = await an_agent.speak()
-                               a_dog.latest_bark = f"{res.bark} <span style='font-weight: 600; color:#a855f7; display:block; margin-top:4px; font-size:0.8rem;'>({res.translation})</span>"
-                           except Exception as e:
-                               print(f"Agent speak error for {a_dog.name}: {e}")
-                       tasks.append(speak_and_update(dog, agent))
-             if tasks:
-                  await asyncio.gather(*tasks)
+            for name, dog in sim.dogs.items():
+                agent = dog_agents.get(name)
+                if agent:
+                    async def speak_and_update(a_dog, an_agent):
+                        try:
+                            res = await an_agent.speak()
+                            a_dog.latest_bark = f"{res.bark} <span style='font-weight: 600; color:#a855f7; display:block; margin-top:4px; font-size:0.8rem;'>({res.translation})</span>"
+                        except Exception as e:
+                            print(f"Agent speak error for {a_dog.name}: {e}")
+                    
+                    # Fire and forget instead of awaiting all generations simultaneously
+                    asyncio.create_task(speak_and_update(dog, agent))
 
         await broadcast_state()
         await asyncio.sleep(sim.config.speed_ms / 1000.0)

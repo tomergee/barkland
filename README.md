@@ -33,18 +33,6 @@ Before deploying, ensure you have set up the following:
 -   **GKE Cluster**:
     *   Workload Identity **Enabled**.
     *   GKE Sandbox (gVisor) **Enabled** on your node pools.
-    *   **GKE Pod Snapshots**: Enabled on your cluster via:
-        ```bash
-        gcloud beta container clusters update <CLUSTER_NAME> --region <REGION> --enable-pod-snapshots
-        ```
-        And requiring a snapshot storage Bucket created via:
-        ```bash
-        gcloud storage buckets create "gs://<BUCKET_NAME>" \
-           --uniform-bucket-level-access \
-           --enable-hierarchical-namespace \
-           --soft-delete-duration=0d \
-           --location="<LOCATION>"
-        ```
 -   **Pre-installed agent-sandbox Controller**:
     *   The underlying `agent-sandbox` extension controllers must be active on the cluster to manage `SandboxClaims` and template injections.
 -   **Workload Identity Setup**:
@@ -71,9 +59,9 @@ chmod +x ./scripts/deploy.sh
 ### 🔍 What the deployment script does:
 1.  **Sync Credentials**: Authenticates `kubectl` to your target GKE cluster.
 2.  **Namespace**: Checks for and creates the `barkland` namespace.
-3.  **Build & Push Images**: Executes `./scripts/build_and_push.sh` to compile your containers and push to Artifact Registry.
-4.  **Manifest Apply**: Overlays the definitions residing inside the `k8s/` directory into the cluster space.
-5.  **Rollout Verification**: Waits for readiness confirmations for critical containers.
+4.  **Build & Push Images**: Executes `./scripts/push-images` to compile your containers and push to Artifact Registry.
+5.  **Manifest Apply**: Overlays the definitions residing inside the `k8s/` directory into the cluster space.
+6.  **Rollout Verification**: Waits for readiness confirmations for critical containers.
 
 ---
 
@@ -83,7 +71,7 @@ If you need to strictly separate your pushes, utilize:
 
 ```bash
 # Build and Push Container Images independently
-./scripts/build_and_push.sh
+./scripts/push-images --image-prefix=us-central1-docker.pkg.dev/gke-ai-eco-dev/barkland/ --extra-image-tag latest
 ```
 
 > [!NOTE]
