@@ -58,6 +58,10 @@ kubectl rollout restart deployment/barkland-orchestrator -n barkland
 echo "=== [5/5] Verifying Deployment Status ==="
 kubectl rollout status deployment/barkland-orchestrator -n ${NAMESPACE}
 
+echo "=== [6/5] Verifying SandboxWarmPool Status ==="
+kubectl get sandboxwarmpools -n ${NAMESPACE}
+
+
 echo "=== Barkland Deployment Complete! ==="
 echo "You can check the external IP using:"
 echo "kubectl get svc barkland-orchestrator -n ${NAMESPACE}"

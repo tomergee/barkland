@@ -80,6 +80,10 @@ def create_sandbox_for_dog(dog_name: str):
          client = SandboxClient(template_name="dog-agent-template", namespace="barkland", api_url="http://sandbox-router-svc:8080")
          sandbox_clients[dog_name] = client
          client.__enter__()
+         if not sim.is_running:
+              # Race cleanup: if simulation stopped while waiting for claim allocation
+              client.__exit__(None, None, None)
+              sandbox_clients.pop(dog_name, None)
     except Exception as e:
          print(f"Error creating sandbox for {dog_name}: {e}")
          sandbox_clients.pop(dog_name, None)
@@ -134,6 +138,7 @@ async def run_simulation():
         for dog in sim.dogs.values():
             if dog.name not in sandbox_clients:
                  threading.Thread(target=create_sandbox_for_dog, args=(dog.name,), daemon=True).start()
+                 await asyncio.sleep(0.05) # 50ms sleep to prevent thundering herd
                  
     while sim.is_running and sim.tick_count < sim.config.num_ticks:
         await sim.step()
