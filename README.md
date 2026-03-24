@@ -1,6 +1,6 @@
 # Barkland: Multi-Agent Simulation
 
-Barkland is a multi-agent simulation framework that leverages GKE (Google Kubernetes Engine) based Sandboxes for secure, isolated agent execution environments. It features a central **Orchestrator** governing the simulation loop/dashboard and dynamically spawns agent environments.
+Barkland is a multi-agent simulation framework where the simulated agents are represented as dogs. It leverages GKE (Google Kubernetes Engine) based Sandboxes for secure, isolated agent execution environments. It features a central **Orchestrator** governing the simulation loop/dashboard and dynamically spawns agent environments.
 
 ---
 
@@ -25,6 +25,17 @@ The system consists of the following components:
 
 ---
 
+## 🛠️ Technologies Used
+
+*   **Google ADK (Agent Development Kit)**: Provides the fundamental LLM agent building blocks (like `LlmAgent` and tools) to construct the dog agents' behaviors and personalities.
+*   **agent-sandbox SDK**: The core client framework used to programmatically provision, manage, and bridge communication with high-scale isolated Kubernetes sandboxes directly from the Python orchestrator.
+*   **Google Kubernetes Engine (GKE)**: The underlying infrastructure providing scalability and workload orchestration.
+*   **gVisor**: Ensures robust security and runtime isolation for each individual agent environment.
+*   **FastAPI & WebSockets**: Powers the real-time Dashboard UI and persistent simulation loop.
+*   **Gemini / Vertex AI**: The large language models powering the behavioral logic of the simulated dog agents.
+
+---
+
 ## 📋 Prerequisites
 
 Before deploying, ensure you have set up the following:
@@ -35,8 +46,9 @@ Before deploying, ensure you have set up the following:
     *   GKE Sandbox (gVisor) **Enabled** on your node pools.
 -   **Pre-installed agent-sandbox Controller**:
     *   The underlying `agent-sandbox` extension controllers must be active on the cluster to manage `SandboxClaims` and template injections.
--   **Workload Identity Setup**:
-    *   The `barkland-orchestrator-sa` Kubernetes Service Account must be mapped to a Google Service Account (GSA) with sufficient `Vertex AI User` permissions to handle client interactions if utilizing Gemini.
+-   **Model Authentication (Choose One)**:
+    *   **Option A: Workload Identity (Vertex AI)**: The `barkland-orchestrator-sa` Kubernetes Service Account must be mapped to a Google Service Account (GSA) with sufficient `Vertex AI User` permissions.
+    *   **Option B: Gemini API Key**: Set `GEMINI_API_KEY` in your local environment. The deployment script uses this to create a Kubernetes secret for agent capabilities.
 -   **Local Tooling**:
     *   `gcloud` CLI initialized to your target project/cluster.
     *   `kubectl` authenticated.
@@ -48,7 +60,21 @@ Before deploying, ensure you have set up the following:
 
 A bundled script is provided for easy automated deployments.
 
-### 1. Simple Build & Apply
+### 1. Configuration Setup
+
+Before deploying, ensure you have created a `.configuration` file in the root of the repository to define your environment properties. The `deploy.sh` script requires these values.
+
+```bash
+cat <<EOF > .configuration
+PROJECT_ID="your-project-id"
+LOCATION="us-central1"
+CLUSTER_NAME="your-cluster-name"
+NAMESPACE="barkland"
+REPO="barkland"
+EOF
+```
+
+### 2. Simple Build & Apply
 Run the full-cycle deployment script from your repository root:
 
 ```bash
@@ -59,6 +85,7 @@ chmod +x ./scripts/deploy.sh
 ### 🔍 What the deployment script does:
 1.  **Sync Credentials**: Authenticates `kubectl` to your target GKE cluster.
 2.  **Namespace**: Checks for and creates the `barkland` namespace.
+3.  **Secrets Management**: Reads `$GEMINI_API_KEY` from your local environment and creates a generic Kubernetes secret (`gemini-api-key`) in the cluster.
 4.  **Build & Push Images**: Executes `./scripts/push-images` to compile your containers and push to Artifact Registry.
 5.  **Manifest Apply**: Overlays the definitions residing inside the `k8s/` directory into the cluster space.
 6.  **Rollout Verification**: Waits for readiness confirmations for critical containers.

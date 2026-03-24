@@ -3,11 +3,19 @@
 set -e
 
 # Configuration
-PROJECT_ID="gke-ai-eco-dev"
-LOCATION="us-central1"
-CLUSTER_NAME="tomer-barkland"
-NAMESPACE="barkland"
-REPO="barkland"
+if [ -f "./.configuration" ]; then
+    source "./.configuration"
+else
+    echo "Error: .configuration file not found. Please create one based on the README."
+    exit 1
+fi
+
+for var in PROJECT_ID LOCATION CLUSTER_NAME NAMESPACE REPO; do
+    if [ -z "${!var}" ]; then
+        echo "Error: Required configuration field $var is not set in .configuration"
+        exit 1
+    fi
+done
 
 if [ ! -d "../agent-sandbox" ]; then
     echo "=== [0/5] Cloning agent-sandbox from upstream ==="

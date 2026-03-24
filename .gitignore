@@ -34,3 +34,4 @@ htmlcov/
 # Miscellaneous
 .DS_Store
 .env
+.configuration
