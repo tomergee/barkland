@@ -13,13 +13,13 @@
     
     <style>
         :root {
-            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311354 100%);
+            --bg-gradient: #202124;
             --card-bg: rgba(255, 255, 255, 0.03);
             --card-border: rgba(255, 255, 255, 0.08);
             --glass-bright: rgba(255, 255, 255, 0.08);
-            --neon-purple: #a855f7;
-            --neon-blue: #3b82f6;
-            --neon-pink: #ec4899;
+            --google-red: #EA4335;
+            --google-blue: #4285F4;
+            --google-yellow: #FBBC04;
             --text-primary: #ffffff;
             --text-secondary: #94a3b8;
         }
@@ -85,7 +85,7 @@
             gap: 12px;
             font-size: 1.8rem;
             font-weight: 800;
-            background: linear-gradient(to right, var(--neon-blue), var(--neon-purple), var(--neon-pink));
+            background: linear-gradient(to right, var(--google-blue), var(--google-red), var(--google-yellow));
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -93,8 +93,8 @@
 
         .logo i {
             font-size: 2rem;
-            -webkit-text-fill-color: var(--neon-purple);
-            text-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+            -webkit-text-fill-color: var(--google-red);
+            text-shadow: 0 0 20px rgba(234, 67, 53, 0.4);
         }
 
         .controls {
@@ -116,9 +116,9 @@
         }
 
         .btn-start {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            background: linear-gradient(135deg, #34A853 0%, #1e8e3e 100%);
             color: white;
-            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+            box-shadow: 0 4px 15px rgba(52, 168, 83, 0.3);
         }
 
         .btn-start:disabled {
@@ -131,18 +131,18 @@
         }
 
         .btn-start:hover {
-            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+            box-shadow: 0 6px 20px rgba(52, 168, 83, 0.4);
             transform: scale(1.05);
         }
 
         .btn-stop {
-            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            background: linear-gradient(135deg, #EA4335 0%, #d93025 100%);
             color: white;
-            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+            box-shadow: 0 4px 15px rgba(234, 67, 53, 0.3);
         }
 
         .btn-stop:hover {
-            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+            box-shadow: 0 6px 20px rgba(234, 67, 53, 0.4);
             transform: scale(1.05);
         }
 
@@ -198,12 +198,12 @@
             border-radius: 4px;
         }
         .dogs-grid::-webkit-scrollbar-thumb {
-            background: rgba(168, 85, 247, 0.2);
+            background: rgba(234, 67, 53, 0.2);
             border-radius: 4px;
             border: 1px solid rgba(255, 255, 255, 0.05);
         }
         .dogs-grid::-webkit-scrollbar-thumb:hover {
-            background: rgba(168, 85, 247, 0.4);
+            background: rgba(234, 67, 53, 0.4);
         }
 
         .dog-card {
@@ -276,7 +276,7 @@
             content: '';
             width: 42px;
             height: 42px;
-            background: #19143a; /* Match body gradient dark inner circle */
+            background: #202124; /* Match body gradient dark inner circle */
             border-radius: 50%;
             position: absolute;
             box-shadow: 0 2px 8px rgba(0,0,0,0.4);
@@ -299,13 +299,13 @@
 
         /* Latest Bark Message */
         .bark-box {
-            background: rgba(168, 85, 247, 0.08);
+            background: rgba(234, 67, 53, 0.08);
             border-radius: 12px;
             padding: 12px 16px;
             font-style: italic;
-            color: #d8b4fe;
+            color: #f8f9fa;
             font-size: 0.9rem;
-            border-left: 3px solid var(--neon-purple);
+            border-left: 3px solid var(--google-red);
             position: relative;
             transition: all 0.3s ease;
             min-height: 50px;
@@ -314,9 +314,9 @@
         }
 
         @keyframes flashBorder {
-            0% { border-color: var(--neon-purple); box-shadow: 0 0 15px rgba(168, 85, 247, 0.5); background: rgba(168, 85, 247, 0.15); }
+            0% { border-color: var(--google-red); box-shadow: 0 0 15px rgba(234, 67, 53, 0.5); background: rgba(234, 67, 53, 0.15); }
             50% { border-color: rgba(255,255,255,0.1); box-shadow: none; background: rgba(255,255,255,0.03); }
-            100% { border-color: var(--neon-purple); box-shadow: 0 0 15px rgba(168, 85, 247, 0.5); background: rgba(168, 85, 247, 0.15); }
+            100% { border-color: var(--google-red); box-shadow: 0 0 15px rgba(234, 67, 53, 0.5); background: rgba(234, 67, 53, 0.15); }
         }
 
         .flash-animation {
@@ -331,7 +331,7 @@
             top: -8px;
             left: 8px;
             font-size: 0.7rem;
-            color: var(--neon-purple);
+            color: var(--google-red);
             opacity: 0.6;
         }
 
@@ -346,7 +346,7 @@
             content: 'Zzz';
             font-family: 'Outfit', sans-serif;
             font-size: 0.75rem;
-            color: #c084fc;
+            color: #EA4335;
             font-weight: 800;
             animation: float-zzz 1.8s infinite ease-in-out;
             position: absolute;
@@ -363,7 +363,7 @@
         .anim-eat {
             display: inline-block;
             animation: chew-bounce 0.8s infinite ease-in-out;
-            color: #10b981;
+            color: #34A853;
             transform-origin: center;
         }
 
@@ -376,23 +376,23 @@
         .anim-play {
             display: inline-block;
             animation: bounce-ball 0.6s infinite cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            color: #f472b6;
+            color: #FBBC04;
         }
 
         /* Pulse Animation for active simulation */
         @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.4); }
-            70% { box-shadow: 0 0 0 10px rgba(168, 85, 247, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0); }
+            0% { box-shadow: 0 0 0 0 rgba(234, 67, 53, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(234, 67, 53, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(234, 67, 53, 0); }
         }
 
 
         /* Terminal styling */
         .terminal-card {
             background: rgba(5, 5, 5, 0.85);
-            border-color: rgba(34, 197, 94, 0.25);
+            border-color: rgba(52, 168, 83, 0.25);
             margin-top: 3rem;
-            box-shadow: 0 0 30px rgba(34, 197, 94, 0.05);
+            box-shadow: 0 0 30px rgba(52, 168, 83, 0.05);
         }
 
         .terminal-header {
@@ -412,7 +412,7 @@
 
         .terminal-body {
             font-family: 'Courier New', Courier, monospace;
-            color: #4ade80;
+            color: #34A853;
             background: rgba(0,0,0,0.6);
             border-radius: 12px;
             padding: 1.5rem;
@@ -428,7 +428,7 @@
             gap: 1.5rem;
             margin-bottom: 1rem;
             font-size: 0.9rem;
-            border-bottom: 1px dashed rgba(34, 197, 94, 0.15);
+            border-bottom: 1px dashed rgba(52, 168, 83, 0.15);
             padding-bottom: 0.8rem;
             font-family: monospace;
         }
@@ -455,7 +455,7 @@
             border-radius: 3px;
         }
         .combobox-dropdown::-webkit-scrollbar-thumb {
-            background: rgba(168, 85, 247, 0.3);
+            background: rgba(234, 67, 53, 0.3);
             border-radius: 3px;
         }
         .combobox-item {
@@ -468,11 +468,11 @@
             text-align: center;
         }
         .combobox-item:hover {
-            background: rgba(168, 85, 247, 0.15);
+            background: rgba(234, 67, 53, 0.15);
             color: white;
         }
         .combobox-item.selected {
-            background: rgba(168, 85, 247, 0.35);
+            background: rgba(234, 67, 53, 0.35);
             color: white;
             font-weight: 700;
         }
@@ -513,7 +513,7 @@
                     <option value="0">Timer: Continuous</option>
                 </select>
                 <!-- Countdown View -->
-                <div id="countdown-timer" style="font-size: 0.85rem; color: #a855f7; font-weight: 600; font-family: monospace; display: none; background: rgba(168, 85, 247, 0.1); padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(168, 85, 247, 0.2); width: 100%; text-align: center;">
+                <div id="countdown-timer" style="font-size: 0.85rem; color: #EA4335; font-weight: 600; font-family: monospace; display: none; background: rgba(234, 67, 53, 0.1); padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(234, 67, 53, 0.2); width: 100%; text-align: center;">
                     <i class="fa-solid fa-stopwatch" style="font-size:0.75rem;"></i> Running: <span id="timer-sec">0</span>s left
                 </div>
             </div>
@@ -522,7 +522,7 @@
         <!-- Stats -->
         <div class="stats-grid">
             <div class="glass-card stat-box">
-                <div class="stat-icon" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa;">
+                <div class="stat-icon" style="background: rgba(66, 133, 244, 0.15); color: #4285F4;">
                     <i class="fa-solid fa-clock"></i>
                 </div>
                 <div>
@@ -531,7 +531,7 @@
                 </div>
             </div>
             <div class="glass-card stat-box">
-                <div class="stat-icon" style="background: rgba(168, 85, 247, 0.15); color: #c084fc;">
+                <div class="stat-icon" style="background: rgba(234, 67, 53, 0.15); color: #EA4335;">
                     <i class="fa-solid fa-shield-cat"></i>
                 </div>
                 <div>
@@ -544,7 +544,7 @@
         <!-- Main Feed -->
         <div>
             <div class="grid-title">
-                <i class="fa-solid fa-bolt" style="color: var(--neon-pink)"></i>
+                <i class="fa-solid fa-bolt" style="color: var(--google-yellow)"></i>
                 Dashboard Feed
             </div>
             <div class="dogs-grid" id="dogs-grid">
@@ -555,20 +555,20 @@
         <!-- Sandbox Terminal Monitor -->
         <div class="glass-card terminal-card" id="sandbox-monitor">
             <div class="terminal-header">
-                <div class="terminal-dot" style="background: #ef4444;"></div>
-                <div class="terminal-dot" style="background: #f59e0b;"></div>
-                <div class="terminal-dot" style="background: #10b981;"></div>
+                <div class="terminal-dot" style="background: #EA4335;"></div>
+                <div class="terminal-dot" style="background: #FBBC04;"></div>
+                <div class="terminal-dot" style="background: #34A853;"></div>
                 <span style="font-size: 0.85rem; font-weight: 600; color: #94a3b8; font-family: monospace; margin-left: 10px;">
-                    <i class="fa-solid fa-code" style="color: #4ade80;"></i> Kubernetes Sandbox Claim Controller Stream
+                    <i class="fa-solid fa-code" style="color: #34A853;"></i> Kubernetes Sandbox Claim Controller Stream
                 </span>
             </div>
             
             <div class="terminal-stat-row">
-                <div>Running [ <span id="sb-running" style="color: #4ade80; font-weight:800;">0</span> ]</div>
+                <div>Running [ <span id="sb-running" style="color: #34A853; font-weight:800;">0</span> ]</div>
                 <div style="color: rgba(255,255,255,0.2)">|</div>
-                <div>Paused [ <span id="sb-paused" style="color: #f59e0b; font-weight:800;">0</span> ]</div>
+                <div>Paused [ <span id="sb-paused" style="color: #FBBC04; font-weight:800;">0</span> ]</div>
                 <div style="color: rgba(255,255,255,0.2)">|</div>
-                <div>Created [ <span id="sb-created" style="color: #3b82f6; font-weight:800;">0</span> ]</div>
+                <div>Created [ <span id="sb-created" style="color: #4285F4; font-weight:800;">0</span> ]</div>
             </div>
 
             <div class="terminal-body" id="terminal-feed">
@@ -605,13 +605,13 @@
                         const line = document.createElement('div');
                         line.className = 'terminal-log-line';
                         line.style.marginTop = '4px';
-                        let statusColor = '#4ade80';
-                        if (sb.status === 'Paused') statusColor = '#f59e0b';
-                        if (sb.status === 'Created') statusColor = '#3b82f6';
+                        let statusColor = '#34A853';
+                        if (sb.status === 'Paused') statusColor = '#FBBC04';
+                        if (sb.status === 'Created') statusColor = '#4285F4';
 
                         line.innerHTML = `<span class="timestamp">[${timeStr}]</span> 
                             <i class="fa-solid fa-cube" style="color: #94a3b8; font-size: 0.8rem;"></i> 
-                            <span style="color: #a855f7; font-weight:600;">${sb.dog_name}</span> <i class="fa-solid fa-arrow-right-long" style="font-size: 0.7rem; color: #6b7280;"></i> 
+                            <span style="color: #EA4335; font-weight:600;">${sb.dog_name}</span> <i class="fa-solid fa-arrow-right-long" style="font-size: 0.7rem; color: #6b7280;"></i> 
                             <span style="color: #e2e8f0; font-family: monospace;">${sb.claim_name}</span> 
                             <span style="color: #64748b; font-size: 0.75rem; margin-left: 6px; font-family: monospace;">(${sb.ip})</span>
                             [<span style="color: ${statusColor}; font-weight: 600;">${sb.status}</span>]`;
@@ -631,19 +631,19 @@
                 grid.innerHTML = ''; // Rebuild Grid
                 
                 data.dogs.forEach(dog => {
-                    let statusColor = '#3b82f6';
+                    let statusColor = '#4285F4';
                     let stateAnim = '';
                     const currentState = dog.state ? dog.state.toUpperCase() : '';
                     if(currentState === 'SLEEPING') {
-                        statusColor = '#a855f7';
+                        statusColor = '#EA4335';
                         stateAnim = '<i class="fa-regular fa-moon anim-sleep" style="margin-left:8px; font-size:0.9rem; position:relative;"></i>';
                     }
                     if(currentState === 'EATING') {
-                        statusColor = '#10b981';
+                        statusColor = '#34A853';
                         stateAnim = '<i class="fa-solid fa-utensils anim-eat" style="margin-left:8px; font-size:0.85rem;"></i>';
                     }
                     if(currentState === 'PLAYING') {
-                        statusColor = '#ec4899';
+                        statusColor = '#FBBC04';
                         stateAnim = '<i class="fa-solid fa-baseball-bat-ball anim-play" style="margin-left:8px; font-size:0.85rem;"></i>';
                     }
 
@@ -666,19 +666,19 @@
 
                             <div class="needs-container">
                                 <div class="pie-column">
-                                    <div class="pie-chart" style="background: conic-gradient(#60a5fa 0% ${dog.needs.hunger}%, rgba(255,255,255,0.04) ${dog.needs.hunger}% 100%)">
+                                    <div class="pie-chart" style="background: conic-gradient(#4285F4 0% ${dog.needs.hunger}%, rgba(255,255,255,0.04) ${dog.needs.hunger}% 100%)">
                                         <span>${Math.round(dog.needs.hunger)}%</span>
                                     </div>
                                     <div class="pie-label">Hunger</div>
                                 </div>
                                 <div class="pie-column">
-                                    <div class="pie-chart" style="background: conic-gradient(#c084fc 0% ${dog.needs.energy}%, rgba(255,255,255,0.04) ${dog.needs.energy}% 100%)">
+                                    <div class="pie-chart" style="background: conic-gradient(#EA4335 0% ${dog.needs.energy}%, rgba(255,255,255,0.04) ${dog.needs.energy}% 100%)">
                                         <span>${Math.round(dog.needs.energy)}%</span>
                                     </div>
                                     <div class="pie-label">Energy</div>
                                 </div>
                                 <div class="pie-column">
-                                    <div class="pie-chart" style="background: conic-gradient(#f472b6 0% ${dog.needs.boredom}%, rgba(255,255,255,0.04) ${dog.needs.boredom}% 100%)">
+                                    <div class="pie-chart" style="background: conic-gradient(#FBBC04 0% ${dog.needs.boredom}%, rgba(255,255,255,0.04) ${dog.needs.boredom}% 100%)">
                                         <span>${Math.round(dog.needs.boredom)}%</span>
                                     </div>
                                     <div class="pie-label">Boredom</div>
@@ -687,7 +687,7 @@
 
                             <div class="bark-box ${flashClass}">
                                 ${data.tick > 0 && data.tick <= 5 
-                                    ? `<i class="fa-solid fa-wand-magic-sparkles" style="color:var(--neon-purple); margin-right:6px;"></i> <b>Personality:</b> <span style="text-transform: uppercase; font-weight:800; color: #d8b4fe; margin-left:4px;">${dog.personality.replace('_', ' ')}</span>`
+                                    ? `<i class="fa-solid fa-wand-magic-sparkles" style="color:var(--google-red); margin-right:6px;"></i> <b>Personality:</b> <span style="text-transform: uppercase; font-weight:800; color: #f8f9fa; margin-left:4px;">${dog.personality.replace('_', ' ')}</span>`
                                     : (dog.latest_bark || "Thinking of barking...")}
                             </div>
                         </div>
@@ -760,7 +760,7 @@
                 if (termFeed) {
                     const ln = document.createElement('div');
                     ln.className = 'terminal-log-line';
-                    ln.innerHTML = `<span class="timestamp">[${new Date().toLocaleTimeString()}]</span> <i class="fa-solid fa-stopwatch" style="color: #60a5fa;"></i> Timer set for <span style="color: #60a5fa; font-weight:600;">${duration}s</span>...`;
+                    ln.innerHTML = `<span class="timestamp">[${new Date().toLocaleTimeString()}]</span> <i class="fa-solid fa-stopwatch" style="color: #4285F4;"></i> Timer set for <span style="color: #4285F4; font-weight:600;">${duration}s</span>...`;
                     termFeed.appendChild(ln);
                     termFeed.scrollTop = termFeed.scrollHeight;
                 }
@@ -770,7 +770,7 @@
                     if (termFeed) {
                         const ln = document.createElement('div');
                         ln.className = 'terminal-log-line';
-                        ln.innerHTML = `<span class="timestamp">[${new Date().toLocaleTimeString()}]</span> <i class="fa-solid fa-triangle-exclamation" style="color: #ef4444;"></i> <span style="color: #ef4444; font-weight:600;">Timer expired automatically pausing simulation.</span>`;
+                        ln.innerHTML = `<span class="timestamp">[${new Date().toLocaleTimeString()}]</span> <i class="fa-solid fa-triangle-exclamation" style="color: #EA4335;"></i> <span style="color: #EA4335; font-weight:600;">Timer expired automatically pausing simulation.</span>`;
                         termFeed.appendChild(ln);
                         termFeed.scrollTop = termFeed.scrollHeight;
                     }
