@@ -27,10 +27,18 @@ async def get_dashboard():
 config = SimulationConfig(num_ticks=500)
 sim = SimulationLoop(config)
 
-# Pre-populate some dogs
-sim.add_dog(DogProfile(name="Buddy", breed="Golden Retriever", personality=Personality.JOCK, state=DogState.PLAYING))
-sim.add_dog(DogProfile(name="Stella", breed="French Bulldog", personality=Personality.DRAMA_QUEEN, state=DogState.SLEEPING))
-sim.add_dog(DogProfile(name="Buster", breed="Beagle", personality=Personality.PHILOSOPHER, state=DogState.EATING))
+# Pre-populate some dogs with random attributes
+DOG_NAMES = ["Barkley", "Noodles", "Sir Waggy", "Waffles", "Biscuit", "Coco", "Peanut", "Luna", "Boots", "Daisy"]
+DOG_BREEDS = ["Golden Retriever", "French Bulldog", "Beagle", "Poodle", "Husky", "Corgi", "Dachshund"]
+
+num_dogs = 3
+selected_names = random.sample(DOG_NAMES, num_dogs)
+for name in selected_names:
+    breed = random.choice(DOG_BREEDS)
+    personality = random.choice(list(Personality))
+    state = random.choice(list(DogState))
+    sim.add_dog(DogProfile(name=name, breed=breed, personality=personality, state=state))
+
 
 from barkland.agents.dog_agent import DogAgent
 

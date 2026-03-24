@@ -45,18 +45,45 @@ When asked to action or bark:
          Generate a bark using Gemini Flash (Bypassed with dummy for local setup trigger visual verification).
          """
          import random
-         barks = [
-             "Woof! 🍖 Want treat!", 
-             "Yip! 💤 Sleepy now...", 
-             "Bark bark! 🎾 Play ball?"
-         ]
-         translations = [
-             "I am extremely hungry!", 
-             "I am starting to drift off to sleep.", 
-             "Let's play and run around!"
-         ]
-         idx = random.randint(0, len(barks)-1)
-         return BarkResponse(bark=barks[idx], translation=translations[idx])
+         from barkland.models.dog import Personality
+
+         mock_responses = {
+             Personality.DRAMA_QUEEN: [
+                 ("Aarrff! 😭 *swoons*", "The water bowl is half empty. Surely I am being starved!"),
+                 ("Yip yip! 😱 *gasp*", "THAT dog sniffed MY grass! The AUDACITY!"),
+                 ("Howl... 😩 *sigh*", "NO ONE looked at me for three whole minutes. I'm fading away.")
+             ],
+             Personality.PHILOSOPHER: [
+                 ("Oooof... 🌌 *stares*", "What is the 'Good Boy'? Is it a title bestowed, or an inherent state?"),
+                 ("Rrruf... 🌀 *blinks*", "I chase the red dot, yet it slips away. A symbol of our infinite hubris."),
+                 ("Hmph. 🧭 *contemplates*", "To bark, or not to bark. That is the question of the afternoon.")
+             ],
+             Personality.GOSSIP: [
+                 ("Yip! 🗣️ *whispers*", "Did you see Buster sniffing the fire hydrant? Scandalous."),
+                 ("Bark! 👀 *points with nose*", "Stella is sleeping. Again. Sloth is a dangerous sin in this park."),
+                 ("Grrrr... 🤫 *nods*", "I heard Buddy let the squirrel escape last Tuesday on purpose.")
+             ],
+             Personality.JOCK: [
+                 ("Woof woof! 🎾 *sprints*", "BALL IS LIFE! Run hard, nap hard!"),
+                 ("Bark! 🏃‍♂️ *panting*", "Another day, another GAIN. Count the fetched sticks!"),
+                 ("Yip! 🏆 *flexes*", "I do full-speed sprints while they sleep. Weakness is not allowed!")
+             ],
+             Personality.FOODIE: [
+                 ("Sniff sniff... 🤤 *licks chops*", "This dry kibble has hints of generic poultry and deep despair."),
+                 ("Slurp! 💧 *winks*", "A 2025 vintage toilet water. Exquisite mouthfeel. Notes of porcelain."),
+                 ("Awoo! 🥩 *demands gourmet*", "I only eat when the temperature is precisely optimal, obviously.")
+             ],
+             Personality.GRUMP: [
+                 ("Grrr. 😒 *rolls eyes*", "Why is everyone moving? Stop moving. It's annoying."),
+                 ("Snort. 🛑 *glares*", "Another day, another squirrel that refuses to get off my lawn."),
+                 ("Sigh. 💤 *curls up*", "If I have to fetch that stick one more time, I'm retiring.")
+             ],
+         }
+
+         lines = mock_responses.get(self.profile.personality, [("Woof!", "Barking.")])
+         idx = random.randint(0, len(lines)-1)
+         return BarkResponse(bark=lines[idx][0], translation=lines[idx][1])
+
 
     def get_needs_tool(self) -> Tool:
          # ADK Tool skeleton
