@@ -182,7 +182,27 @@
         .dogs-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-            gap: 2rem;
+            gap: 1.5rem;
+            max-height: 520px;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+
+        /* Custom Scrollbar for Dogs Grid */
+        .dogs-grid::-webkit-scrollbar {
+            width: 8px;
+        }
+        .dogs-grid::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 4px;
+        }
+        .dogs-grid::-webkit-scrollbar-thumb {
+            background: rgba(168, 85, 247, 0.2);
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .dogs-grid::-webkit-scrollbar-thumb:hover {
+            background: rgba(168, 85, 247, 0.4);
         }
 
         .dog-card {
@@ -314,12 +334,57 @@
             opacity: 0.6;
         }
 
+        /* State Animations */
+        @keyframes float-zzz {
+            0% { transform: translateY(0) scale(0.8); opacity: 0; }
+            50% { opacity: 0.8; }
+            100% { transform: translateY(-12px) scale(1.2); opacity: 0; }
+        }
+
+        .anim-sleep::after {
+            content: 'Zzz';
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.75rem;
+            color: #c084fc;
+            font-weight: 800;
+            animation: float-zzz 1.8s infinite ease-in-out;
+            position: absolute;
+            margin-left: 2px;
+            top: -6px;
+        }
+
+        @keyframes chew-bounce {
+            0%, 100% { transform: scale(1) translateY(0); }
+            40% { transform: scale(1.15) translateY(-2px) rotate(5deg); }
+            60% { transform: scale(0.95) translateY(0) rotate(-3deg); }
+        }
+
+        .anim-eat {
+            display: inline-block;
+            animation: chew-bounce 0.8s infinite ease-in-out;
+            color: #10b981;
+            transform-origin: center;
+        }
+
+        @keyframes bounce-ball {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            40% { transform: translateY(-8px) rotate(20deg); }
+            70% { transform: translateY(2px) rotate(-10deg); }
+        }
+
+        .anim-play {
+            display: inline-block;
+            animation: bounce-ball 0.6s infinite cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            color: #f472b6;
+        }
+
         /* Pulse Animation for active simulation */
         @keyframes pulse {
             0% { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.4); }
             70% { box-shadow: 0 0 0 10px rgba(168, 85, 247, 0); }
             100% { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0); }
         }
+
 
         /* Terminal styling */
         .terminal-card {
@@ -390,7 +455,14 @@
                 <span>Barkland</span>
             </div>
             <div class="controls" style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
-                <div style="display: flex; gap: 12px;">
+                <div style="display: flex; gap: 12px; align-items: center;">
+                    <!-- Counter Input -->
+                    <div style="display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.04); padding: 8px 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); box-shadow: 0 2px 10px rgba(0,0,0,0.2);">
+                        <i class="fa-solid fa-shield-dog" style="color: var(--neon-purple); font-size: 0.95rem;"></i>
+                        <span style="font-size: 0.8rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;">Count:</span>
+                        <input type="number" id="dog-count" min="1" max="99" value="4" style="background: transparent; border: none; color: white; width: 40px; font-weight: 800; font-family: 'Outfit', sans-serif; font-size: 1rem; outline: none; text-align: center; padding: 0;">
+                    </div>
+                    
                     <button class="btn btn-start" onclick="startSim()">
                         <i class="fa-solid fa-play"></i> Start Sim
                     </button>
@@ -520,9 +592,20 @@
             
             data.dogs.forEach(dog => {
                 let statusColor = '#3b82f6';
-                if(dog.state === 'SLEEPING') statusColor = '#a855f7';
-                if(dog.state === 'EATING') statusColor = '#10b981';
-                if(dog.state === 'PLAYING') statusColor = '#ec4899';
+                let stateAnim = '';
+                const currentState = dog.state ? dog.state.toUpperCase() : '';
+                if(currentState === 'SLEEPING') {
+                    statusColor = '#a855f7';
+                    stateAnim = '<i class="fa-regular fa-moon anim-sleep" style="margin-left:8px; font-size:0.9rem; position:relative;"></i>';
+                }
+                if(currentState === 'EATING') {
+                    statusColor = '#10b981';
+                    stateAnim = '<i class="fa-solid fa-utensils anim-eat" style="margin-left:8px; font-size:0.85rem;"></i>';
+                }
+                if(currentState === 'PLAYING') {
+                    statusColor = '#ec4899';
+                    stateAnim = '<i class="fa-solid fa-baseball-bat-ball anim-play" style="margin-left:8px; font-size:0.85rem;"></i>';
+                }
 
                 let flashClass = '';
                 // Flash personality for the first 5 ticks
@@ -534,13 +617,14 @@
                     <div class="glass-card dog-card">
                         <div class="dog-header">
                             <div>
-                                <div class="dog-name">${dog.name}</div>
-                                <div class="dog-breed">${dog.state}</div>
+                                <div class="dog-name" style="display:flex; align-items:center;">${dog.name} ${stateAnim}</div>
+                                <div class="dog-breed">${dog.breed}</div>
                             </div>
                             <span class="status-badge" style="background: ${statusColor}22; color: ${statusColor}; border: 1px solid ${statusColor}44">
                                 ${dog.state}
                             </span>
                         </div>
+
 
                         <div class="needs-container">
                             <div class="pie-column">
@@ -579,7 +663,23 @@
 
         async function startSim() {
             document.querySelector('.btn-start').disabled = true;
-            await fetch('/api/simulation/start', { method: 'POST' });
+            
+            // Extract count from input
+            const countVal = parseInt(document.getElementById('dog-count').value) || 4;
+            
+            if (countVal < 1 || countVal > 99) {
+                alert("Please select a dog count between 1 and 99.");
+                document.querySelector('.btn-start').disabled = false;
+                return;
+            }
+            
+            await fetch('/api/simulation/start', { 
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ count: countVal })
+            });
             
             if (simTimeout) clearTimeout(simTimeout);
             if (countdownInterval) clearInterval(countdownInterval);

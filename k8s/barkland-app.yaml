@@ -59,11 +59,11 @@ spec:
           ports:
             - containerPort: 8000
           env:
-            # - name: GEMINI_API_KEY
-            #   valueFrom:
-            #     secretKeyRef:
-            #       name: gemini-api-key
-            #       key: GEMINI_API_KEY
+            - name: GEMINI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: gemini-api-key
+                  key: GEMINI_API_KEY
             # # NOTE: If the above is commented out, it uses Workload Identity (Vertex AI).
             - name: PORT
               value: "8000"

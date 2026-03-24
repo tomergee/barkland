@@ -20,6 +20,13 @@ gcloud container clusters get-credentials ${CLUSTER_NAME} --region ${LOCATION} -
 echo "=== [2/5] Creating Namespace: ${NAMESPACE} ==="
 kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
 
+echo "=== [2a/5] Creating/Updating Gemini API Key Secret ==="
+if [ -z "$GEMINI_API_KEY" ]; then
+    echo "Warning: GEMINI_API_KEY is not set in environment."
+else
+    kubectl create secret generic gemini-api-key --from-literal=GEMINI_API_KEY="${GEMINI_API_KEY}" -n ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
+fi
+
 echo "=== [2b/5] Deploying agent-sandbox Prerequisite ==="
 # Build and Push Controller Image
 (cd ../agent-sandbox && ./dev/tools/push-images --image-prefix=${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/ --controller-only)

@@ -4,6 +4,7 @@ from typing import Dict, List
 import asyncio
 import os
 import random
+from pydantic import BaseModel, Field
 
 # Seed early so module-level static declarations roll deterministically
 random.seed(int(os.getenv("SEED", "42")))
@@ -28,12 +29,37 @@ config = SimulationConfig(num_ticks=500)
 sim = SimulationLoop(config)
 
 # Pre-populate some dogs with random attributes
-DOG_NAMES = ["Barkley", "Noodles", "Sir Waggy", "Waffles", "Biscuit", "Coco", "Peanut", "Luna", "Boots", "Daisy"]
+DOG_PREFIXES = ["Sir", "Lady", "Captain", "Baron", "Count", "Professor", "Doctor", "Agent", "Chief", "Major"]
+DOG_NAMES = ["Barkley", "Noodles", "Wags", "Waffles", "Biscuit", "Coco", "Peanut", "Luna", "Boots", "Daisy", "Buster", "Rex", "Stella", "Buddy"]
+DOG_SUFFIXES = ["von Sniff", "the Great", "of Barkland", "III", "Jr.", "the Destroyer", "the Fast", "the Brave"]
 DOG_BREEDS = ["Golden Retriever", "French Bulldog", "Beagle", "Poodle", "Husky", "Corgi", "Dachshund"]
 
-num_dogs = 3
-selected_names = random.sample(DOG_NAMES, num_dogs)
-for name in selected_names:
+def generate_unique_dog_names(count: int) -> List[str]:
+    names_set = set()
+    attempts = 0
+    # Add simple numbering fallback in case we exhaust distinct combo spaces for huge counts (safety first).
+    while len(names_set) < count and attempts < 1000:
+        parts = []
+        if random.random() < 0.4:
+            parts.append(random.choice(DOG_PREFIXES))
+        parts.append(random.choice(DOG_NAMES))
+        if random.random() < 0.4:
+            parts.append(random.choice(DOG_SUFFIXES))
+        fullname = " ".join(parts)
+        if fullname not in names_set:
+            names_set.add(fullname)
+        attempts += 1
+    
+    # Fallback padding if unique names didn't cover the quota
+    while len(names_set) < count:
+        names_set.add(f"Pup-{len(names_set) + 1}")
+        
+    return list(names_set)
+
+# Pre-populate defaults
+num_dogs = 4
+unique_names = generate_unique_dog_names(num_dogs)
+for name in unique_names:
     breed = random.choice(DOG_BREEDS)
     personality = random.choice(list(Personality))
     state = random.choice(list(DogState))
@@ -62,12 +88,37 @@ def create_sandbox_for_dog(dog_name: str):
 def get_dogs():
     return [dog.__dict__ for dog in sim.dogs.values()]
 
+class StartSimulationRequest(BaseModel):
+    count: int = Field(default=4, ge=1, le=99)
+
 @app.post("/api/simulation/start")
-async def start_simulation():
+async def start_simulation(req: StartSimulationRequest):
     if not sim.is_running:
-         # Run in background via asyncio task
+         # 1. Cleanup old sandbox claims fully to prevent leaks
+         for dog_name in list(sandbox_clients.keys()):
+              client = sandbox_clients.pop(dog_name, None)
+              if client:
+                   threading.Thread(target=client.__exit__, args=(None, None, None), daemon=True).start()
+         
+         # 2. Reset Simulation and Agent pools
+         sim.dogs.clear()
+         dog_agents.clear()
+         sim.tick_count = 0 
+         
+         # 3. Populate new dogs allocation
+         names = generate_unique_dog_names(req.count)
+         for name in names:
+              breed = random.choice(DOG_BREEDS)
+              personality = random.choice(list(Personality))
+              state = random.choice(list(DogState))
+              dp = DogProfile(name=name, breed=breed, personality=personality, state=state)
+              sim.add_dog(dp)
+              # Link agent
+              dog_agents[name] = DogAgent(dp)
+
+         # 4. Run in background via asyncio task
          asyncio.create_task(run_simulation())
-         return {"status": "Simulation started"}
+         return {"status": f"Simulation started with {req.count} dogs"}
     return {"status": "Simulation already running"}
 
 @app.post("/api/simulation/stop")
@@ -152,6 +203,7 @@ async def broadcast_state():
         "dogs": [
              {
                  "name": dog.name,
+                 "breed": dog.breed,
                  "state": dog.state.value,
                  "needs": dog.needs.__dict__,
                  "play_partner": dog.play_partner,

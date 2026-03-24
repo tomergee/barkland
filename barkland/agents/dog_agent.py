@@ -45,9 +45,51 @@ When asked to action or bark:
          Generate a bark using Gemini Flash (Bypassed with dummy for local setup trigger visual verification).
          """
          import random
-         from barkland.models.dog import Personality
+         from barkland.models.dog import Personality, DogState
+
+         try:
+              from google import genai
+              from google.genai import types
+              from pydantic import BaseModel
+
+              class BarkOutput(BaseModel):
+                  bark: str
+                  translation: str
+
+              client = genai.Client()
+              prompt = (
+                  f"You are a dog named {self.profile.name}, a {self.profile.breed}. "
+                  f"Your personality is '{self.profile.personality.value}'. "
+                  f"Your current state is {self.profile.state.name}. "
+                  "Generate your reaction. "
+                  "The 'bark' should be a short sound and action description (e.g., 'Woof! *wags tail*'). "
+                  "The 'translation' is your humorous internal monologue reflecting your personality and current state. "
+                  "Keep it short and immersive."
+              )
+              if self.profile.state == DogState.SLEEPING:
+                   prompt += (
+                       " Since you are SLEEPING, the 'bark' needs to be sleeping sounds (e.g., 'Zzz... 😴 *twitch*') "
+                       "and the 'translation' MUST be a short, funny dream description starting with 'Sleeping (Dreaming of...)' or similar."
+                   )
+
+              response = client.models.generate_content(
+                   model='gemini-2.5-flash',
+                   contents=prompt,
+                   config=types.GenerateContentConfig(
+                       response_mime_type="application/json",
+                       response_schema=BarkOutput,
+                   ),
+              )
+              import json
+              res_json = json.loads(response.text)
+              return BarkResponse(bark=res_json['bark'], translation=res_json['translation'])
+         except Exception as e:
+              # Fallback to static mock responses
+              pass
+
 
          mock_responses = {
+
              Personality.DRAMA_QUEEN: [
                  ("Aarrff! 😭 *swoons*", "The water bowl is half empty. Surely I am being starved!"),
                  ("Yip yip! 😱 *gasp*", "THAT dog sniffed MY grass! The AUDACITY!"),
@@ -79,6 +121,17 @@ When asked to action or bark:
                  ("Sigh. 💤 *curls up*", "If I have to fetch that stick one more time, I'm retiring.")
              ],
          }
+
+         if self.profile.state == DogState.SLEEPING:
+              dreams = [
+                  "chasing giant squirrels made of bacon",
+                  "swimming in a pool filled with peanut butter",
+                  "catching the ultimate red laser dot",
+                  "the perfect tennis ball that never bounces away",
+                  "digging to the center of the Earth to find sausages"
+              ]
+              dream = random.choice(dreams)
+              return BarkResponse(bark="Zzz... 😴 *twitch*", translation=f"Sleeping (Dreaming of {dream})")
 
          lines = mock_responses.get(self.profile.personality, [("Woof!", "Barking.")])
          idx = random.randint(0, len(lines)-1)
