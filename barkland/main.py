@@ -96,7 +96,7 @@ def get_dogs():
     return [dog.__dict__ for dog in sim.dogs.values()]
 
 class StartSimulationRequest(BaseModel):
-    count: int = Field(default=4, ge=1, le=99)
+    count: int = Field(default=4, ge=1, le=200)
 
 @app.post("/api/simulation/start")
 async def start_simulation(req: StartSimulationRequest):
@@ -123,7 +123,15 @@ async def start_simulation(req: StartSimulationRequest):
 @app.post("/api/simulation/stop")
 def stop_simulation():
     sim.is_running = False
-    return {"status": "Simulation stopped"}
+    
+    import subprocess
+    print("Issuing aggressive namespace sandbox and claim cleanup on stop...")
+    try:
+        subprocess.run(["kubectl", "delete", "sandboxclaims,sandboxes", "--all", "-n", "barkland", "--wait=false"], check=False)
+    except Exception as e:
+        print(f"Kubectl cleanup skipped or failed: {e}")
+        
+    return {"status": "Simulation stopped and sandboxes cleaned up"}
 
 async def run_simulation(names: List[str]):
     sim.is_running = True

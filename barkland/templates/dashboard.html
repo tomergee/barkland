@@ -499,7 +499,6 @@
                         <option value="120">Agents: 120 Dogs</option>
                         <option value="150">Agents: 150 Dogs</option>
                         <option value="200">Agents: 200 Dogs</option>
-                        <option value="300">Agents: 300 Dogs</option>
                     </select>
                     
                     <button class="btn btn-start" onclick="startSim()">
@@ -753,8 +752,8 @@
             // Extract count from input
             const countVal = parseInt(document.getElementById('dog-count').value) || 4;
             
-            if (countVal < 1 || countVal > 300) {
-                alert("Please select a dog count between 1 and 300.");
+            if (countVal < 1 || countVal > 200) {
+                alert("Please select a dog count between 1 and 200.");
                 document.querySelector('.btn-start').disabled = false;
                 return;
             }
