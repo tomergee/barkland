@@ -56,6 +56,75 @@ Before deploying, ensure you have set up the following:
 
 ---
 
+## ☁️ Cloud Environment Setup
+
+If you are starting from a fresh project, follow these steps to provision the required Google Cloud resources.
+
+### 1. Create an Artifact Registry Repository
+
+Create a Docker repository in Artifact Registry to store the built images.
+
+```bash
+export PROJECT_ID="your-project-id"
+export REGISTRY_LOCATION="us-central1"
+export REPO="barkland"
+
+# Enable Artifact Registry API
+gcloud services enable artifactregistry.googleapis.com --project=$PROJECT_ID
+
+# Create the repository
+gcloud artifacts repositories create $REPO \
+    --repository-format=docker \
+    --location=$REGISTRY_LOCATION \
+    --project=$PROJECT_ID \
+    --description="Barkland Docker repository"
+
+# Configure Docker to authenticate with the registry
+gcloud auth configure-docker ${REGISTRY_LOCATION}-docker.pkg.dev
+```
+
+### 2. Create a GKE Cluster
+
+Barkland requires a GKE cluster with Workload Identity and GKE Sandbox (gVisor) support.
+
+**For a GKE Autopilot Cluster (Recommended & Simplest):**
+Autopilot has Workload Identity enabled by default and supports GKE Sandbox automatically when requested by pods.
+
+```bash
+export CLUSTER_NAME="your-cluster-name"
+export CLUSTER_LOCATION="us-central1" # Regional is recommended for Autopilot
+
+# Enable Kubernetes Engine API
+gcloud services enable container.googleapis.com --project=$PROJECT_ID
+
+# Create the Autopilot cluster
+gcloud container clusters create-auto $CLUSTER_NAME \
+    --location=$CLUSTER_LOCATION \
+    --project=$PROJECT_ID
+```
+
+**For a GKE Standard Cluster:**
+If you prefer a Standard cluster, you must explicitly enable Workload Identity and GKE Sandbox.
+
+```bash
+export CLUSTER_NAME="your-cluster-name"
+export CLUSTER_LOCATION="us-central1-a" # Zonal
+
+# Enable Kubernetes Engine API
+gcloud services enable container.googleapis.com --project=$PROJECT_ID
+
+# Create the Standard cluster
+gcloud container clusters create $CLUSTER_NAME \
+    --location=$CLUSTER_LOCATION \
+    --project=$PROJECT_ID \
+    --workload-pool=${PROJECT_ID}.svc.id.goog \
+    --sandbox type=gvisor \
+    --machine-type=e2-standard-4 \
+    --num-nodes=3
+```
+
+---
+
 ## 🚀 Deployment Instructions
 
 A bundled script is provided for easy automated deployments.
