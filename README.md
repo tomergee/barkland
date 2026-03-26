@@ -51,7 +51,7 @@ Before deploying, ensure you have set up the following:
 -   **Pre-installed agent-sandbox Controller**:
     *   The `deploy.sh` script automatically installs the core and extensions components of `agent-sandbox` directly from the official GitHub releases.
 -   **Model Authentication (Choose One)**:
-    *   **Option A: Workload Identity (Vertex AI)**: The `barkland-orchestrator-sa` Kubernetes Service Account must be mapped to a Google Service Account (GSA) with sufficient `Vertex AI User` permissions.
+    *   **Option A: Workload Identity (Vertex AI)**: The `barkland-orchestrator-sa` Kubernetes Service Account can be granted access to Vertex AI using Workload Identity Federation (Principal Identifiers). See [Workload Identity Federation Setup](#-workload-identity-federation-setup) for step-by-step instructions.
     *   **Option B: Gemini API Key**: Set `GEMINI_API_KEY` in your local environment. The deployment script uses this to create a Kubernetes secret for agent capabilities.
 -   **Local Tooling**:
     *   `gcloud` CLI initialized to your target project/cluster.
@@ -118,14 +118,64 @@ export CLUSTER_LOCATION="us-central1-a" # Zonal
 gcloud services enable container.googleapis.com --project=$PROJECT_ID
 
 # Create the Standard cluster
+# 1. Create the Standard cluster with Workload Identity
 gcloud container clusters create $CLUSTER_NAME \
     --location=$CLUSTER_LOCATION \
     --project=$PROJECT_ID \
     --workload-pool=${PROJECT_ID}.svc.id.goog \
+    --machine-type=e2-standard-4 \
+    --num-nodes=1 # Default pool for system workloads
+
+# 2. Add a Node Pool with GKE Sandbox (gVisor) enabled for sandboxed workloads
+gcloud container node-pools create gvisor-nodepool \
+    --cluster=$CLUSTER_NAME \
+    --location=$CLUSTER_LOCATION \
+    --project=$PROJECT_ID \
     --sandbox type=gvisor \
     --machine-type=e2-standard-4 \
-    --num-nodes=3
+    --num-nodes=10
 ```
+
+---
+
+## 🔐 Workload Identity Federation Setup
+
+If you choose to use Workload Identity (Option A) instead of an API Key, you can use Workload Identity Federation to grant your Kubernetes workloads direct access to Google Cloud APIs (like Vertex AI) without creating dedicated Google Cloud Service Accounts or annotating Kubernetes Service Accounts.
+
+You just need to grant the required IAM roles directly to your Kubernetes Service Account (KSA) using its **Principal Identifier**.
+
+### 1. Identify your Kubernetes Service Account
+
+The Orchestrator uses the following KSA:
+-   **Name**: `barkland-orchestrator-sa`
+-   **Namespace**: `barkland` (or your configured namespace)
+
+### 2. Grant Permissions to the KSA
+
+Run the following command to grant the **Vertex AI User** role directly to the Orchestrator KSA:
+
+```bash
+export PROJECT_NUMBER="your-project-number" # Numerical Project ID
+export NAMESPACE="barkland"
+
+gcloud projects add-iam-policy-binding projects/$PROJECT_ID \
+    --role="roles/aiplatform.user" \
+    --member="principal://iam.googleapis.com/projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/$PROJECT_ID.svc.id.goog/subject/ns/$NAMESPACE/sa/barkland-orchestrator-sa" \
+    --condition=None
+```
+
+> [!NOTE]
+> Ensure you remove or comment out the `GEMINI_API_KEY` environment variables in `k8s/barkland-app.yaml` and `k8s/sandbox_template.yaml` to force the application to use the default Google credentials chain (Workload Identity).
+>
+> You can run the following `sed` commands to automatically comment out these blocks:
+>
+> ```bash
+> # Comment out GEMINI_API_KEY in barkland-app.yaml
+> sed -i '/- name: GEMINI_API_KEY/,/key: GEMINI_API_KEY/ s/^/#/' k8s/barkland-app.yaml
+> 
+> # Comment out GEMINI_API_KEY in sandbox_template.yaml
+> sed -i '/- name: GEMINI_API_KEY/,/key: GEMINI_API_KEY/ s/^/#/' k8s/sandbox_template.yaml
+> ```
 
 ---
 
@@ -191,12 +241,12 @@ If you need to strictly separate your pushes, utilize:
 
 ## 🔬 Post-Deployment Verification
 
-Check accurate readiness:
+Check readiness:
 ```bash
 kubectl get pods,svc -n barkland
 ```
 
-Retrieve your dashboard endpoint easily:
+Retrieve your dashboard endpoint:
 ```bash
 # Obtain the external IP address
 kubectl get svc barkland-orchestrator -n barkland
