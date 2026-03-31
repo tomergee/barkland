@@ -18,7 +18,8 @@ for var in PROJECT_ID CLUSTER_LOCATION REGISTRY_LOCATION CLUSTER_NAME NAMESPACE 
 done
 
 echo "=== [1/6] Acquiring GKE cluster credentials ==="
-gcloud container clusters get-credentials ${CLUSTER_NAME} --region ${CLUSTER_LOCATION} --project ${PROJECT_ID}
+
+gcloud container clusters get-credentials ${CLUSTER_NAME} --location ${CLUSTER_LOCATION} --project ${PROJECT_ID}
 
 echo "=== [2/6] Creating Namespace: ${NAMESPACE} ==="
 kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -

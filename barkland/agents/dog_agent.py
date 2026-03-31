@@ -1,8 +1,6 @@
-from typing import List, Optional
-import os
+from typing import List, Optional, Callable
 from pydantic import BaseModel, Field
-# from google_adk import LlmAgent, Tool # Assuming ADK imports
-class Tool: pass
+from google.adk.agents import LlmAgent # Assuming ADK imports
 from barkland.models.dog import DogProfile, DogState
 from barkland.agents.personalities import PERSONALITY_INSTRUCTIONS
 
@@ -20,12 +18,12 @@ class DogAgent:
         self.instruction = self._generate_instruction()
         
         # Initialize ADK Agent
-        # self.agent = LlmAgent(
-        #     model_name="gemini-2.5-flash", 
-        #     instruction=self.instruction,
-        #     tools=[self.get_needs_tool(), self.get_surroundings_tool()]
-        # )
-
+        self.agent = LlmAgent(
+            name=f"dog_agent_{self.profile.name.lower().replace(' ', '_')}",
+            model="gemini-2.5-flash",
+            instruction=self.instruction,
+            tools=[self.get_needs_tool(), self.get_surroundings_tool()]
+        )
     def _generate_instruction(self) -> str:
         base = f"""You are a dog named {self.profile.name}, a {self.profile.breed}.
 Your personality type is: {self.profile.personality.value}.
@@ -49,23 +47,11 @@ When asked to action or bark:
          from barkland.models.dog import Personality, DogState
 
          try:
-              from google import genai
-              from google.genai import types
-              from pydantic import BaseModel
-
-              class BarkOutput(BaseModel):
-                  bark: str
-                  translation: str
-
-              client = genai.Client()
               prompt = (
-                  f"You are a dog named {self.profile.name}, a {self.profile.breed}. "
-                  f"Your personality is '{self.profile.personality.value}'. "
-                  f"Your current state is {self.profile.state.name}. "
-                  "Generate your reaction. "
-                  "The 'bark' should be a short sound and action description (e.g., 'Woof! *wags tail*'). "
-                  "The 'translation' is your humorous internal monologue reflecting your personality and current state. "
-                  "Keep it short and immersive."
+                   f"React to your current state: {self.profile.state.name}. "
+                   "The 'bark' needs to be a short sound and action description. "
+                   "The 'translation' is your humorous internal monologue reflecting your personality and current state. "
+                   "Keep it short and immersive."
               )
               if self.profile.state == DogState.SLEEPING:
                    prompt += (
@@ -73,21 +59,11 @@ When asked to action or bark:
                        "and the 'translation' MUST be a short, funny dream description starting with 'Sleeping (Dreaming of...)' or similar."
                    )
 
-              model_name = os.getenv("GOOGLE_GENAI_MODEL_NAME", "gemini-2.5-flash")
-              response = await client.aio.models.generate_content(
-                   model=model_name,
-                   contents=prompt,
-                   config=types.GenerateContentConfig(
-                       response_mime_type="application/json",
-                       response_schema=BarkOutput,
-                   ),
-              )
-              import json
-              res_json = json.loads(response.text)
-              return BarkResponse(bark=res_json['bark'], translation=res_json['translation'])
+              res = await self.agent.run(prompt, response_schema=BarkResponse)
+              return BarkResponse(bark=res.bark, translation=res.translation)
          except Exception as e:
-              # Fallback to static mock responses
-              pass
+              # Do not mask the exception; fail if ADK is missing or errors out
+              raise e
 
 
          mock_responses = {
@@ -140,14 +116,14 @@ When asked to action or bark:
          return BarkResponse(bark=lines[idx][0], translation=lines[idx][1])
 
 
-    def get_needs_tool(self) -> Tool:
+    def get_needs_tool(self) -> Callable:
          # ADK Tool skeleton
          def check_needs():
              return self.profile.needs.__dict__
-         return Tool(name="check_needs", func=check_needs)
-         
-    def get_surroundings_tool(self) -> Tool:
+         return check_needs
+
+    def get_surroundings_tool(self) -> Callable:
          def check_surroundings():
               # Return other dogs state, etc.
               return {"simulation_time": "tick"}
-         return Tool(name="check_surroundings", func=check_surroundings)
+         return check_surroundings
