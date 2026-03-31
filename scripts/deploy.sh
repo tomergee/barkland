@@ -10,7 +10,7 @@ else
     exit 1
 fi
 
-for var in PROJECT_ID LOCATION CLUSTER_NAME NAMESPACE REPO WARMPOOL_REPLICAS; do
+for var in PROJECT_ID CLUSTER_LOCATION REGISTRY_LOCATION CLUSTER_NAME NAMESPACE REPO WARMPOOL_REPLICAS; do
     if [ -z "${!var}" ]; then
         echo "Error: Required configuration field $var is not set in .configuration"
         exit 1
@@ -18,7 +18,7 @@ for var in PROJECT_ID LOCATION CLUSTER_NAME NAMESPACE REPO WARMPOOL_REPLICAS; do
 done
 
 echo "=== [1/6] Acquiring GKE cluster credentials ==="
-gcloud container clusters get-credentials ${CLUSTER_NAME} --region ${LOCATION} --project ${PROJECT_ID}
+gcloud container clusters get-credentials ${CLUSTER_NAME} --location ${CLUSTER_LOCATION} --project ${PROJECT_ID}
 
 echo "=== [2/6] Creating Namespace: ${NAMESPACE} ==="
 kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
@@ -49,13 +49,13 @@ if [ ! -f "Dockerfile" ]; then
     exit 1
 fi
 
-./scripts/push-images --image-prefix=${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/ --extra-image-tag latest
+./scripts/push-images --image-prefix=${REGISTRY_LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/ --extra-image-tag latest
 
 echo "=== [4/5] Applying Kubernetes Manifests ==="
-export PROJECT_ID LOCATION CLUSTER_NAME NAMESPACE REPO WARMPOOL_REPLICAS
+export PROJECT_ID CLUSTER_LOCATION REGISTRY_LOCATION CLUSTER_NAME NAMESPACE REPO WARMPOOL_REPLICAS
 
 for file in k8s/*.yaml; do
-    envsubst '$PROJECT_ID $LOCATION $CLUSTER_NAME $NAMESPACE $REPO $WARMPOOL_REPLICAS' < "$file" | kubectl apply -f -
+    envsubst '$PROJECT_ID $CLUSTER_LOCATION $REGISTRY_LOCATION $CLUSTER_NAME $NAMESPACE $REPO $WARMPOOL_REPLICAS' < "$file" | kubectl apply -f -
 done
 
 kubectl rollout restart deployment/barkland-orchestrator -n ${NAMESPACE}

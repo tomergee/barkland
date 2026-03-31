@@ -21,7 +21,8 @@ ENVIRONMENT=local
 # 2. GKE Deployment Configuration (Used by deploy.sh)
 # ------------------------------------------
 PROJECT_ID="your_project_id"
-LOCATION="your_location"
+CLUSTER_LOCATION="your_cluster_location"
+REGISTRY_LOCATION="your_registry_location"
 CLUSTER_NAME="your-cluster-name"
 NAMESPACE="barkland"
 REPO="barkland"

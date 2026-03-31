@@ -56,7 +56,7 @@ spec:
       serviceAccountName: barkland-orchestrator-sa
       containers:
         - name: orchestrator
-          image: ${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/barkland:latest
+          image: ${REGISTRY_LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/barkland:latest
           ports:
             - containerPort: 8000
           env:
