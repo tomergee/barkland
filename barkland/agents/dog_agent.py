@@ -1,7 +1,6 @@
-from typing import List, Optional
-import os
+from typing import List, Optional, Callable
 from pydantic import BaseModel, Field
-from google_adk import LlmAgent, Tool # Assuming ADK imports
+from google.adk.agents import LlmAgent # Assuming ADK imports
 from barkland.models.dog import DogProfile, DogState
 from barkland.agents.personalities import PERSONALITY_INSTRUCTIONS
 
@@ -20,11 +19,11 @@ class DogAgent:
         
         # Initialize ADK Agent
         self.agent = LlmAgent(
-            model_name="gemini-2.5-flash", 
+            name=f"dog_agent_{self.profile.name.lower().replace(' ', '_')}",
+            model="gemini-2.5-flash",
             instruction=self.instruction,
             tools=[self.get_needs_tool(), self.get_surroundings_tool()]
         )
-
     def _generate_instruction(self) -> str:
         base = f"""You are a dog named {self.profile.name}, a {self.profile.breed}.
 Your personality type is: {self.profile.personality.value}.
@@ -117,14 +116,14 @@ When asked to action or bark:
          return BarkResponse(bark=lines[idx][0], translation=lines[idx][1])
 
 
-    def get_needs_tool(self) -> Tool:
+    def get_needs_tool(self) -> Callable:
          # ADK Tool skeleton
          def check_needs():
              return self.profile.needs.__dict__
-         return Tool(name="check_needs", func=check_needs)
-         
-    def get_surroundings_tool(self) -> Tool:
+         return check_needs
+
+    def get_surroundings_tool(self) -> Callable:
          def check_surroundings():
               # Return other dogs state, etc.
               return {"simulation_time": "tick"}
-         return Tool(name="check_surroundings", func=check_surroundings)
+         return check_surroundings
