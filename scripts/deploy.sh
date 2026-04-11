@@ -32,10 +32,23 @@ else
 fi
 
 echo "=== [4/6] Deploying agent-sandbox Prerequisite ==="
-AGENT_SANDBOX_VERSION="v0.2.1"
-echo "Installing Agent Sandbox ${AGENT_SANDBOX_VERSION}..."
-kubectl apply -f https://github.com/kubernetes-sigs/agent-sandbox/releases/download/${AGENT_SANDBOX_VERSION}/manifest.yaml
-kubectl apply -f https://github.com/kubernetes-sigs/agent-sandbox/releases/download/${AGENT_SANDBOX_VERSION}/extensions.yaml
+if [ "${USE_LOCAL_AGENT_SANDBOX}" = "true" ]; then
+    echo "Building and installing Agent Sandbox from local repo using its tools..."
+    IMAGE_TAG="local-$(date +%s)"
+    IMAGE_PREFIX="${REGISTRY_LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/"
+    
+    # Build and push
+    (cd ../agent-sandbox && ./dev/tools/push-images --image-prefix ${IMAGE_PREFIX} --controller-only --image-tag ${IMAGE_TAG})
+    
+    # Deploy
+    CONTROLLER_ARGS="--leader-elect=true --extensions=true --sandbox-concurrent-workers=600 --sandbox-claim-concurrent-workers=600 --sandbox-warm-pool-concurrent-workers=600 --kube-api-qps=600 --kube-api-burst=600"
+    (cd ../agent-sandbox && ./dev/tools/deploy-to-kube --image-prefix ${IMAGE_PREFIX} --extensions --image-tag ${IMAGE_TAG} --controller-args "${CONTROLLER_ARGS}")
+else
+    AGENT_SANDBOX_VERSION="v0.2.1"
+    echo "Installing Agent Sandbox ${AGENT_SANDBOX_VERSION}..."
+    kubectl apply -f https://github.com/kubernetes-sigs/agent-sandbox/releases/download/${AGENT_SANDBOX_VERSION}/manifest.yaml
+    kubectl apply -f https://github.com/kubernetes-sigs/agent-sandbox/releases/download/${AGENT_SANDBOX_VERSION}/extensions.yaml
+fi
 
 echo "Enabling extensions mode and setting high concurrency on agent-sandbox-controller..."
 kubectl patch deployment agent-sandbox-controller -n agent-sandbox-system --type='json' -p='[
@@ -61,10 +74,14 @@ fi
 ./scripts/push-images --image-prefix=${REGISTRY_LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/ --extra-image-tag latest
 
 echo "=== [4/5] Applying Kubernetes Manifests ==="
+# Provide defaults for simulation variables if not set
+export SPEED_MS=${SPEED_MS:-1000}
+export SPEAK_BATCH_SIZE=${SPEAK_BATCH_SIZE:-50}
+
 export PROJECT_ID CLUSTER_LOCATION REGISTRY_LOCATION CLUSTER_NAME NAMESPACE REPO WARMPOOL_REPLICAS
 
 for file in k8s/*.yaml; do
-    envsubst '$PROJECT_ID $CLUSTER_LOCATION $REGISTRY_LOCATION $CLUSTER_NAME $NAMESPACE $REPO $WARMPOOL_REPLICAS' < "$file" | kubectl apply -f -
+    envsubst '$PROJECT_ID $CLUSTER_LOCATION $REGISTRY_LOCATION $CLUSTER_NAME $NAMESPACE $REPO $WARMPOOL_REPLICAS $SPEED_MS $SPEAK_BATCH_SIZE' < "$file" | kubectl apply -f -
 done
 
 kubectl rollout restart deployment/barkland-orchestrator -n ${NAMESPACE}

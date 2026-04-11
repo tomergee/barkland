@@ -61,7 +61,9 @@ spec:
             - containerPort: 8000
           env:
             - name: SPEED_MS
-              value: "1000"
+              value: "${SPEED_MS}"
+            - name: SPEAK_BATCH_SIZE
+              value: "${SPEAK_BATCH_SIZE}"
             - name: GEMINI_API_KEY
               valueFrom:
                 secretKeyRef:

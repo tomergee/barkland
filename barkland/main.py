@@ -138,7 +138,7 @@ async def start_simulation(req: StartSimulationRequest):
         # 1. Cleanup old sandbox claims fully to prevent leaks
         for dog_name in list(sandbox_clients.keys()):
             sandbox = sandbox_clients.pop(dog_name, None)
-            if sandbox:
+            if sandbox and not isinstance(sandbox, dict):
                 threading.Thread(target=sandbox.terminate, daemon=True).start()
         
         # 2. Reset Simulation and Agent pools
@@ -161,7 +161,7 @@ def stop_simulation():
     # Cleanup old sandbox claims fully to prevent leaks and race conditions
     for dog_name in list(sandbox_clients.keys()):
         sandbox = sandbox_clients.pop(dog_name, None)
-        if sandbox:
+        if sandbox and not isinstance(sandbox, dict):
             print(f"Terminating sandbox for {dog_name} on stop...")
             threading.Thread(target=sandbox.terminate, daemon=True).start()
         
@@ -232,7 +232,6 @@ async def run_simulation(names: List[str]):
     while sim.is_running and sim.tick_count < sim.config.num_ticks:
         await sim.step()
         
-        # Trigger Pause/Resume operations based on State transitions
         for name, dog in sim.dogs.items():
             if dog.ticks_in_state == 0:
                 logger.info(f"State Change: Dog {name} transitioned to {dog.state.value}")
@@ -259,7 +258,7 @@ async def run_simulation(names: List[str]):
                         except Exception as e:
                             print(f"Failed to initiate resume for {name}: {e}")
 
-        # Trigger Whirlwind Talking lines every 2 tick cycles
+
         if sim.tick_count > 0 and sim.tick_count % 2 == 0:
             active_dogs = list(sim.dogs.items())
             # Sort all dogs by name A-Z
@@ -269,10 +268,10 @@ async def run_simulation(names: List[str]):
             if num_dogs > 0:
                 # Calculate start index based on tick count (starting at tick 2)
                 cycle = (sim.tick_count - 1) // 2
-                start_idx = (cycle * 10) % num_dogs
+                batch_size = sim.config.speak_batch_size
+                start_idx = (cycle * batch_size) % num_dogs
                 
-                # Take a batch of 10 dogs, rotating through the list
-                batch_size = min(10, num_dogs)
+                batch_size = min(batch_size, num_dogs)
                 speaking_dogs = []
                 for i in range(batch_size):
                     idx = (start_idx + i) % num_dogs
@@ -281,25 +280,26 @@ async def run_simulation(names: List[str]):
                 for name, dog in speaking_dogs:
                     agent = dog_agents.get(name)
                     if agent:
-                        async def speak_and_update(a_dog, an_agent):
+                        def speak_and_update_thread(a_dog, an_agent):
                             try:
-                                # Fallback to mock if Gemini API takes too long
-                                logger.info(f"Calling speak for {a_dog.name}...")
+                                logger.info(f"Calling speak for {a_dog.name} in thread...")
                                 start_time = time.time()
-                                res = await asyncio.wait_for(an_agent.speak(), timeout=10.0)
-                                logger.info(f"Speak completed for {a_dog.name} in {time.time() - start_time:.2f}s")
-                                a_dog.latest_bark = f"{res.bark} <span style='font-weight: 600; color:#a855f7; display:block; margin-top:4px; font-size:0.8rem;'>({res.translation})</span>"
-                            except asyncio.TimeoutError:
-                                print(f"Agent speak timed out for {a_dog.name}, falling back to mock.")
-                                res = an_agent.get_mock_response()
+                                import asyncio
+                                loop = asyncio.new_event_loop()
+                                res = loop.run_until_complete(an_agent.speak())
+                                loop.close()
+                                logger.info(f"Speak completed for {a_dog.name} in thread in {time.time() - start_time:.2f}s")
                                 a_dog.latest_bark = f"{res.bark} <span style='font-weight: 600; color:#a855f7; display:block; margin-top:4px; font-size:0.8rem;'>({res.translation})</span>"
                             except Exception as e:
-                                print(f"Agent speak error for {a_dog.name}: {e}")
+                                print(f"Agent speak error for {a_dog.name} in thread: {e}")
+                                res = an_agent.get_mock_response()
+                                a_dog.latest_bark = f"{res.bark} <span style='font-weight: 600; color:#a855f7; display:block; margin-top:4px; font-size:0.8rem;'>({res.translation})</span>"
                         
-                        # Fire and forget instead of awaiting all generations simultaneously
-                        asyncio.create_task(speak_and_update(dog, agent))
+                        threading.Thread(target=speak_and_update_thread, args=(dog, agent), daemon=True).start()
+
 
         await broadcast_state()
+            
         await asyncio.sleep(sim.config.speed_ms / 1000.0)
         
     sim.is_running = False
@@ -307,7 +307,7 @@ async def run_simulation(names: List[str]):
     # Deletion / Cleanup on stop/pause sleep cycles
     for dog_name in list(sandbox_clients.keys()):
         sandbox = sandbox_clients.pop(dog_name, None)
-        if sandbox:
+        if sandbox and not isinstance(sandbox, dict):
             # Run in thread so exit deletion doesn't block async cleanup sequences
             threading.Thread(target=sandbox.terminate, daemon=True).start()
              

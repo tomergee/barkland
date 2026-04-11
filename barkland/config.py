@@ -11,3 +11,4 @@ class SimulationConfig:
     speed_ms: int = int(os.getenv("SPEED_MS", 30))  # delay between ticks in milliseconds
     seed: int = int(os.getenv("SEED", 42))
     log_file: Optional[str] = os.getenv("LOG_FILE") # path to write JSON event log
+    speak_batch_size: int = int(os.getenv("SPEAK_BATCH_SIZE", 10)) # number of dogs speaking per batch

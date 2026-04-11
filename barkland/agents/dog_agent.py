@@ -63,6 +63,7 @@ When asked to action or bark:
                   "and the 'translation' MUST be a short, funny dream description starting with 'Sleeping (Dreaming of...)' or similar."
               )
 
+
          try:
               session_service = InMemorySessionService()
               runner = Runner(

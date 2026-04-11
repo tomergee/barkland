@@ -680,6 +680,7 @@
             let ws = new WebSocket(wsUrl);
 
             ws.onmessage = function(event) {
+                if (typeof ignoreWsMessages !== 'undefined' && ignoreWsMessages) return;
                 const data = JSON.parse(event.data);
                 document.getElementById('tick-val').innerText = data.tick;
                 document.getElementById('dogs-val').innerText = data.dogs.length;
@@ -712,6 +713,11 @@
                         termFeed.appendChild(line);
                     });
                     
+                    // Keep only last 200 lines to prevent DOM bloating
+                    while (termFeed.childNodes.length > 200) {
+                        termFeed.removeChild(termFeed.firstChild);
+                    }
+                    
                     document.getElementById('sb-running').innerText = running;
                     document.getElementById('sb-paused').innerText = paused;
                     document.getElementById('sb-created').innerText = created;
@@ -721,7 +727,6 @@
                 }
 
                 const grid = document.getElementById('dogs-grid');
-                grid.innerHTML = ''; // Rebuild Grid
                 
                 data.dogs.forEach(dog => {
                     let statusColor = '#4285F4';
@@ -745,47 +750,52 @@
                          flashClass = 'flash-animation';
                     }
 
-                    const cardHtml = `
-                        <div class="glass-card dog-card">
-                            <div class="dog-header">
-                                <div>
-                                    <div class="dog-name" style="display:flex; align-items:center;">${dog.name} ${stateAnim}</div>
-                                    <div class="dog-breed">${dog.breed}</div>
-                                </div>
-                                <span class="status-badge" style="background: ${statusColor}22; color: ${statusColor}; border: 1px solid ${statusColor}44">
-                                    ${dog.state}
-                                </span>
+                    let card = document.getElementById(`dog-card-${dog.name}`);
+                    if (!card) {
+                        card = document.createElement('div');
+                        card.id = `dog-card-${dog.name}`;
+                        grid.appendChild(card);
+                    }
+                    
+                    card.className = `glass-card dog-card ${flashClass}`;
+                    card.innerHTML = `
+                        <div class="dog-header">
+                            <div>
+                                <div class="dog-name" style="display:flex; align-items:center;">${dog.name} ${stateAnim}</div>
+                                <div class="dog-breed">${dog.breed}</div>
                             </div>
+                            <span class="status-badge" style="background: ${statusColor}22; color: ${statusColor}; border: 1px solid ${statusColor}44">
+                                ${dog.state}
+                            </span>
+                        </div>
 
-                            <div class="needs-container">
-                                <div class="pie-column">
-                                    <div class="pie-chart" style="background: conic-gradient(#4285F4 0% ${dog.needs.hunger}%, rgba(255,255,255,0.04) ${dog.needs.hunger}% 100%)">
-                                        <span>${Math.round(dog.needs.hunger)}%</span>
-                                    </div>
-                                    <div class="pie-label">Hunger</div>
+                        <div class="needs-container">
+                            <div class="pie-column">
+                                <div class="pie-chart" style="background: conic-gradient(#4285F4 0% ${dog.needs.hunger}%, rgba(255,255,255,0.04) ${dog.needs.hunger}% 100%)">
+                                    <span>${Math.round(dog.needs.hunger)}%</span>
                                 </div>
-                                <div class="pie-column">
-                                    <div class="pie-chart" style="background: conic-gradient(#EA4335 0% ${dog.needs.energy}%, rgba(255,255,255,0.04) ${dog.needs.energy}% 100%)">
-                                        <span>${Math.round(dog.needs.energy)}%</span>
-                                    </div>
-                                    <div class="pie-label">Energy</div>
-                                </div>
-                                <div class="pie-column">
-                                    <div class="pie-chart" style="background: conic-gradient(#FBBC04 0% ${dog.needs.boredom}%, rgba(255,255,255,0.04) ${dog.needs.boredom}% 100%)">
-                                        <span>${Math.round(dog.needs.boredom)}%</span>
-                                    </div>
-                                    <div class="pie-label">Boredom</div>
-                                </div>
+                                <div class="pie-label">Hunger</div>
                             </div>
-
-                            <div class="bark-box ${flashClass}">
-                                ${data.tick > 0 && data.tick <= 5 
-                                    ? `<i class="fa-solid fa-wand-magic-sparkles" style="color:var(--google-red); margin-right:6px;"></i> <b>Personality:</b> <span style="text-transform: uppercase; font-weight:800; color: #f8f9fa; margin-left:4px;">${dog.personality.replace('_', ' ')}</span>`
-                                    : (dog.latest_bark || "Thinking of barking...")}
+                            <div class="pie-column">
+                                <div class="pie-chart" style="background: conic-gradient(#EA4335 0% ${dog.needs.energy}%, rgba(255,255,255,0.04) ${dog.needs.energy}% 100%)">
+                                    <span>${Math.round(dog.needs.energy)}%</span>
+                                </div>
+                                <div class="pie-label">Energy</div>
+                            </div>
+                            <div class="pie-column">
+                                <div class="pie-chart" style="background: conic-gradient(#FBBC04 0% ${dog.needs.boredom}%, rgba(255,255,255,0.04) ${dog.needs.boredom}% 100%)">
+                                    <span>${Math.round(dog.needs.boredom)}%</span>
+                                </div>
+                                <div class="pie-label">Boredom</div>
                             </div>
                         </div>
+
+                        <div class="bark-box">
+                            ${data.tick > 0 && data.tick <= 5 
+                                ? `<i class="fa-solid fa-wand-magic-sparkles" style="color:var(--google-red); margin-right:6px;"></i> <b>Personality:</b> <span style="text-transform: uppercase; font-weight:800; color: #f8f9fa; margin-left:4px;">${dog.personality.replace('_', ' ')}</span>`
+                                : (dog.latest_bark || "Thinking of barking...")}
+                        </div>
                     `;
-                    grid.innerHTML += cardHtml;
                 });
             };
 
@@ -835,8 +845,10 @@
 
         let simTimeout = null;
         let countdownInterval = null;
+        let ignoreWsMessages = false;
 
         async function startSim() {
+            ignoreWsMessages = false;
             document.querySelector('.btn-start').disabled = true;
             const resetBtn = document.getElementById('reset-btn');
             if (resetBtn) resetBtn.disabled = true;
@@ -859,6 +871,7 @@
                 return;
             }
             
+            document.getElementById('dogs-grid').innerHTML = '';
             await fetch('/api/simulation/start', { 
                 method: 'POST',
                 headers: {
@@ -938,6 +951,8 @@
                 return;
             }
             
+            ignoreWsMessages = true;
+            
             // Clear terminal feed
             document.getElementById('terminal-feed').innerHTML = '';
             
@@ -950,7 +965,7 @@
             // Reset active dogs count
             document.getElementById('dogs-val').innerText = '0';
             
-            alert("UI has been reset!");
+
         }
     </script>
 </body>

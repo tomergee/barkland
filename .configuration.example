@@ -26,7 +26,10 @@ REGISTRY_LOCATION="your_registry_location"
 CLUSTER_NAME="your-cluster-name"
 NAMESPACE="barkland"
 REPO="barkland"
-WARMPOOL_REPLICAS="10"
+WARMPOOL_REPLICAS="100
+
+# Set to "true" to build and install Agent Sandbox from local repo (../agent-sandbox)
+USE_LOCAL_AGENT_SANDBOX="false"
 
 
 # 3. Simulation Engine Configuration
@@ -34,8 +37,10 @@ WARMPOOL_REPLICAS="10"
 # Override default simulation variables
 NUM_DOGS="5"
 NUM_TICKS="10"
-SPEED_MS="30"
+SPEED_MS="1000"
 SEED="42"
+# Number of dogs prompted to speak per batch
+SPEAK_BATCH_SIZE="20
 
 # Filepath for writing the simulation JSON event log
 # LOG_FILE="simulation.log"

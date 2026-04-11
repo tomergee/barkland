@@ -276,3 +276,15 @@ kubectl patch deployment agent-sandbox-controller -n agent-sandbox-system --type
 ```
 
 These settings increase the number of concurrent workers for each controller to 600 and raise the Kubernetes API client limits to 600 QPS/Burst, preventing throttling during massive scale-ups.
+
+
+## Building and Deploying from Local `agent-sandbox` Repo
+If you are developing fixes in the `agent-sandbox` controller itself (located in the sibling directory `../agent-sandbox`), you can configure `deploy.sh` to build and install from your local source instead of fetching released manifests from GitHub.
+
+1.  In your `.configuration` file, add:
+    ```bash
+    USE_LOCAL_AGENT_SANDBOX="true"
+    ```
+2.  Run `./scripts/deploy.sh`. The script will now:
+    *   Use `./dev/tools/push-images` from the `agent-sandbox` repo to build and push a local controller image.
+    *   Use `./dev/tools/deploy-to-kube` to apply local manifests from `../agent-sandbox/k8s` and patch the deployment to use your newly built image, with extensions enabled.
