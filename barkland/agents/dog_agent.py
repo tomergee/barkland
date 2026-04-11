@@ -1,6 +1,9 @@
 from typing import List, Optional, Callable
 from pydantic import BaseModel, Field
 from google.adk.agents import LlmAgent # Assuming ADK imports
+from google.adk.runners import Runner
+from google.adk.sessions.in_memory_session_service import InMemorySessionService
+from google.genai import types
 from barkland.models.dog import DogProfile, DogState
 from barkland.agents.personalities import PERSONALITY_INSTRUCTIONS
 
@@ -22,7 +25,9 @@ class DogAgent:
             name=f"dog_agent_{self.profile.name.lower().replace(' ', '_')}",
             model="gemini-2.5-flash",
             instruction=self.instruction,
-            tools=[self.get_needs_tool(), self.get_surroundings_tool()]
+            tools=[self.get_needs_tool(), self.get_surroundings_tool()],
+            output_schema=BarkResponse,
+            output_key="bark_response"
         )
     def _generate_instruction(self) -> str:
         base = f"""You are a dog named {self.profile.name}, a {self.profile.breed}.
@@ -46,21 +51,44 @@ When asked to action or bark:
          import random
          from barkland.models.dog import Personality, DogState
 
-         try:
-              prompt = (
-                   f"React to your current state: {self.profile.state.name}. "
-                   "The 'bark' needs to be a short sound and action description. "
-                   "The 'translation' is your humorous internal monologue reflecting your personality and current state. "
-                   "Keep it short and immersive."
+         prompt = (
+              f"React to your current state: {self.profile.state.name}. "
+              "The 'bark' needs to be a short sound and action description. "
+              "The 'translation' is your humorous internal monologue reflecting your personality and current state. "
+              "Keep it short and immersive."
+         )
+         if self.profile.state == DogState.SLEEPING:
+              prompt += (
+                  " Since you are SLEEPING, the 'bark' needs to be sleeping sounds (e.g., 'Zzz... 😴 *twitch*') "
+                  "and the 'translation' MUST be a short, funny dream description starting with 'Sleeping (Dreaming of...)' or similar."
               )
-              if self.profile.state == DogState.SLEEPING:
-                   prompt += (
-                       " Since you are SLEEPING, the 'bark' needs to be sleeping sounds (e.g., 'Zzz... 😴 *twitch*') "
-                       "and the 'translation' MUST be a short, funny dream description starting with 'Sleeping (Dreaming of...)' or similar."
-                   )
 
-              res = await self.agent.run(prompt, response_schema=BarkResponse)
-              return BarkResponse(bark=res.bark, translation=res.translation)
+         try:
+              session_service = InMemorySessionService()
+              runner = Runner(
+                  app_name="barkland",
+                  agent=self.agent,
+                  session_service=session_service,
+                  auto_create_session=True
+              )
+              
+              new_message = types.Content(parts=[types.Part(text=prompt)])
+              
+              from google.adk.utils.context_utils import Aclosing
+              async with Aclosing(runner.run_async(
+                  user_id="user",
+                  session_id="session_1",
+                  new_message=new_message,
+              )) as agen:
+                  async for event in agen:
+                      if event.actions and event.actions.state_delta:
+                          res = event.actions.state_delta.get("bark_response")
+                          if res:
+                              if isinstance(res, dict):
+                                  return BarkResponse(bark=res.get("bark"), translation=res.get("translation"))
+                              return res
+              
+              raise Exception("Failed to get bark response from ADK")
          except Exception as e:
               # Log error and fall back to mock responses
               print(f"ADK error: {e}. Falling back to mock responses.")

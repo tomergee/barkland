@@ -1,6 +1,6 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
-from typing import Dict, List
+from typing import Dict, List, Any
 import asyncio
 import os
 import random
@@ -27,10 +27,13 @@ import threading
 try:
     if is_local:
         SandboxClient = None # Force fallback out of K8s Sandbox connections
+        SandboxDirectConnectionConfig = None
     else:
         from k8s_agent_sandbox import SandboxClient
+        from k8s_agent_sandbox.models import SandboxDirectConnectionConfig
 except ImportError:
     SandboxClient = None # Fallback for local testing without SDK
+    SandboxDirectConnectionConfig = None
 
 app = FastAPI()
 
@@ -84,7 +87,7 @@ for name in unique_names:
 from barkland.agents.dog_agent import DogAgent
 
 connected_clients: List[WebSocket] = []
-sandbox_clients: Dict[str, 'SandboxClient'] = {}
+sandbox_clients: Dict[str, Any] = {}
 dog_agents: Dict[str, DogAgent] = {dog.name: DogAgent(dog) for dog in sim.dogs.values()}
 
 def create_sandbox_for_dog(dog_name: str):
@@ -94,13 +97,18 @@ def create_sandbox_for_dog(dog_name: str):
     try:
          import os
          router_url = os.getenv("SANDBOX_ROUTER_URL", "http://sandbox-router-svc:8080")
-         client = SandboxClient(template_name="dog-agent-template", namespace="barkland", api_url=router_url)
-         sandbox_clients[dog_name] = client
-         client.__enter__()
+         connection_config = SandboxDirectConnectionConfig(api_url=router_url)
+         client = SandboxClient(connection_config=connection_config)
+         
+         # Set placeholder for UI to show 'Creating' state
+         sandbox_clients[dog_name] = {"status": "Creating", "claim_name": f"barkland-sandbox-{dog_name.lower()}"}
+         
+         sandbox = client.create_sandbox(template="dog-agent-template", namespace="barkland")
+         sandbox_clients[dog_name] = sandbox
 
          if not sim.is_running:
               # Race cleanup: if simulation stopped while waiting for claim allocation
-              client.__exit__(None, None, None)
+              sandbox.terminate()
               sandbox_clients.pop(dog_name, None)
     except Exception as e:
          print(f"Error creating sandbox for {dog_name}: {e}")
@@ -116,19 +124,19 @@ class StartSimulationRequest(BaseModel):
 @app.post("/api/simulation/start")
 async def start_simulation(req: StartSimulationRequest):
     if not sim.is_running:
-         # 1. Cleanup old sandbox claims fully to prevent leaks
-         for dog_name in list(sandbox_clients.keys()):
-              client = sandbox_clients.pop(dog_name, None)
-              if client:
-                   threading.Thread(target=client.__exit__, args=(None, None, None), daemon=True).start()
-         
-         # 2. Reset Simulation and Agent pools
-         sim.dogs.clear()
-         dog_agents.clear()
-         sim.tick_count = 0 
-         
-         # 3. Generate new names layout
-         names = generate_unique_dog_names(req.count)
+        # 1. Cleanup old sandbox claims fully to prevent leaks
+        for dog_name in list(sandbox_clients.keys()):
+            sandbox = sandbox_clients.pop(dog_name, None)
+            if sandbox:
+                threading.Thread(target=sandbox.terminate, daemon=True).start()
+        
+        # 2. Reset Simulation and Agent pools
+        sim.dogs.clear()
+        dog_agents.clear()
+        sim.tick_count = 0 
+        
+        # 3. Generate new names layout
+        names = generate_unique_dog_names(req.count)
 
          # 4. Run in background via asyncio task passing names list
          asyncio.create_task(run_simulation(names))
@@ -143,7 +151,7 @@ def stop_simulation():
         import subprocess
         print("Issuing aggressive namespace sandbox and claim cleanup on stop...")
         try:
-            subprocess.run(["kubectl", "delete", "sandboxclaims,sandboxes", "--all", "-n", "barkland", "--wait=false"], check=False)
+            subprocess.run(["kubectl", "delete", "sandboxclaims", "--all", "-n", "barkland", "--wait=false"], check=False)
         except Exception as e:
             print(f"Kubectl cleanup skipped or failed: {e}")
         
@@ -240,10 +248,10 @@ async def run_simulation(names: List[str]):
     
     # Deletion / Cleanup on stop/pause sleep cycles
     for dog_name in list(sandbox_clients.keys()):
-        client = sandbox_clients.pop(dog_name, None)
-        if client:
-             # Run in thread so exit deletion doesn't block async cleanup sequences
-             threading.Thread(target=client.__exit__, args=(None, None, None), daemon=True).start()
+        sandbox = sandbox_clients.pop(dog_name, None)
+        if sandbox:
+            # Run in thread so exit deletion doesn't block async cleanup sequences
+            threading.Thread(target=sandbox.terminate, daemon=True).start()
              
     await broadcast_state()
 
@@ -255,14 +263,15 @@ async def broadcast_state():
         claim_name = f"barkland-sandbox-{dog.name.lower()}"
         ip = "Allocating..."
         
-        client = sandbox_clients.get(dog.name)
-        if client:
-            claim_name = client.claim_name or claim_name
-            if client.is_ready():
-                 status = "Running" if dog.state != DogState.SLEEPING else "Paused"
-                 ip = client.base_url or "Dynamic IP Ready"
+        sandbox = sandbox_clients.get(dog.name)
+        if sandbox:
+            if isinstance(sandbox, dict):
+                status = sandbox.get("status", "Creating")
+                claim_name = sandbox.get("claim_name", claim_name)
             else:
-                 status = "Bound" if getattr(client, "sandbox_name", None) else "Creating"
+                claim_name = sandbox.claim_name or claim_name
+                status = "Running" if dog.state != DogState.SLEEPING else "Paused"
+                ip = getattr(sandbox.connection_config, "api_url", "Dynamic IP Ready")
         else:
             # Fallback for mock view logic or triggers allocations pending
             status = "Allocating"

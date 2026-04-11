@@ -28,26 +28,29 @@ async def test_speak_prompt_includes_sleeping_rule():
     )
     agent = DogAgent(profile)
     
-    # Mock GenAI client
-    with mock.patch('google.genai.Client') as MockClient:
-        mock_instance = MockClient.return_value
-        mock_instance.aio.models.generate_content = mock.AsyncMock()
-        mock_instance.aio.models.generate_content.return_value.text = '{"bark": "Zzz", "translation": "Sleeping (Dreaming of bacon)"}'
+    # Mock Runner
+    with mock.patch('barkland.agents.dog_agent.Runner') as MockRunner:
+        mock_runner_instance = MockRunner.return_value
         
-        async def mock_run(prompt, response_schema=None):
-            full_contents = f"{agent.instruction}\n\n{prompt}"
-            await mock_instance.aio.models.generate_content(contents=full_contents)
-            return BarkResponse(bark="Zzz", translation="Sleeping (Dreaming of bacon)")
-        object.__setattr__(agent.agent, 'run', mock_run)
+        captured_new_message = None
+        
+        async def mock_run_async(user_id, session_id, new_message):
+            nonlocal captured_new_message
+            captured_new_message = new_message
+            
+            mock_event = mock.MagicMock()
+            mock_event.actions.state_delta = {"bark_response": BarkResponse(bark="Zzz", translation="Sleeping (Dreaming of bacon)")}
+            yield mock_event
+            
+        mock_runner_instance.run_async = mock_run_async
         
         # Call speak
         response = await agent.speak()
         
-        # Verify prompt contained specific SLEEPING instructions
-        called_args = mock_instance.aio.models.generate_content.call_args
-        prompt_text = called_args.kwargs['contents']
+        # Verify prompt
+        assert captured_new_message is not None
+        prompt_text = captured_new_message.parts[0].text
         
-        assert "Sir Barkley" in prompt_text
         assert "SLEEPING" in prompt_text
         assert "Dreaming of" in prompt_text or "MUST be a short, funny dream description" in prompt_text
 
@@ -61,21 +64,24 @@ async def test_speak_prompt_includes_eating_rule():
     )
     agent = DogAgent(profile)
     
-    with mock.patch('google.genai.Client') as MockClient:
-        mock_instance = MockClient.return_value
-        mock_instance.aio.models.generate_content = mock.AsyncMock()
-        mock_instance.aio.models.generate_content.return_value.text = '{"bark": "Crunch", "translation": "Yum"}'
+    with mock.patch('barkland.agents.dog_agent.Runner') as MockRunner:
+        mock_runner_instance = MockRunner.return_value
         
-        async def mock_run(prompt, response_schema=None):
-            full_contents = f"{agent.instruction}\n\n{prompt}"
-            await mock_instance.aio.models.generate_content(contents=full_contents)
-            return BarkResponse(bark="Crunch", translation="Yum")
-        object.__setattr__(agent.agent, 'run', mock_run)
+        captured_new_message = None
+        
+        async def mock_run_async(user_id, session_id, new_message):
+            nonlocal captured_new_message
+            captured_new_message = new_message
+            
+            mock_event = mock.MagicMock()
+            mock_event.actions.state_delta = {"bark_response": BarkResponse(bark="Crunch", translation="Yum")}
+            yield mock_event
+            
+        mock_runner_instance.run_async = mock_run_async
         
         await agent.speak()
         
-        called_args = mock_instance.aio.models.generate_content.call_args
-        prompt_text = called_args.kwargs['contents']
+        assert captured_new_message is not None
+        prompt_text = captured_new_message.parts[0].text
         
-        assert "Sir Barkley" in prompt_text
         assert "EATING" in prompt_text

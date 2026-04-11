@@ -252,3 +252,27 @@ Retrieve your dashboard endpoint:
 kubectl get svc barkland-orchestrator -n barkland
 ```
 Visit the reported IP in your browser browser to interact with the dashboard dashboard directly!
+
+---
+
+## ⚡ Performance Tuning for High Scale
+
+When running a high number of concurrent agents (e.g., 50+ dogs) or requiring high QPS, the default settings of the `agent-sandbox-controller` may cause delays in sandbox allocation.
+
+It is recommended to tune the controller concurrency and API rate limits. You can apply the following patch to the `agent-sandbox-controller` deployment in the `agent-sandbox-system` namespace:
+
+```bash
+kubectl patch deployment agent-sandbox-controller -n agent-sandbox-system --type='json' -p='[
+  {"op": "replace", "path": "/spec/template/spec/containers/0/args", "value": [
+    "--leader-elect=true",
+    "--extensions=true",
+    "--sandbox-concurrent-workers=600",
+    "--sandbox-claim-concurrent-workers=600",
+    "--sandbox-warm-pool-concurrent-workers=600",
+    "--kube-api-qps=600",
+    "--kube-api-burst=600"
+  ]}
+]'
+```
+
+These settings increase the number of concurrent workers for each controller to 600 and raise the Kubernetes API client limits to 600 QPS/Burst, preventing throttling during massive scale-ups.
