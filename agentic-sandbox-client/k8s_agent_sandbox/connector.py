@@ -178,12 +178,14 @@ class SandboxConnector:
         namespace: str,
         connection_config: SandboxConnectionConfig,
         k8s_helper: K8sHelper,
+        pod_ip: str | None = None,
     ):
         # Parameter initialization
         self.id = sandbox_id
         self.namespace = namespace
         self.connection_config = connection_config
         self.k8s_helper = k8s_helper
+        self.pod_ip = pod_ip
         
         # Connection strategy initialization
         self.strategy = self._connection_strategy()
@@ -231,7 +233,7 @@ class SandboxConnector:
             url = f"{base_url.rstrip('/')}/{endpoint.lstrip('/')}"
 
             headers = kwargs.get("headers", {}).copy()
-            headers["X-Sandbox-ID"] = self.id
+            headers["X-Sandbox-ID"] = self.pod_ip if self.pod_ip else self.id
             headers["X-Sandbox-Namespace"] = self.namespace
             headers["X-Sandbox-Port"] = str(self.connection_config.server_port)
             kwargs["headers"] = headers

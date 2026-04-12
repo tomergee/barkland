@@ -690,27 +690,33 @@
                     let running = 0, paused = 0, created = 0;
                     const termFeed = document.getElementById('terminal-feed');
                     
+                    if (!window.sbStates) window.sbStates = {};
                     data.sandboxes.forEach(sb => {
                         if(sb.status === 'Running') running++;
                         if(sb.status === 'Paused') paused++;
                         if(sb.status === 'Creating' || sb.status === 'Bound') created++;
                         
-                        const timeStr = new Date().toLocaleTimeString();
-                        const line = document.createElement('div');
-                        line.className = 'terminal-log-line';
-                        line.style.marginTop = '4px';
-                        let statusColor = '#34A853';
-                        if (sb.status === 'Paused') statusColor = '#FBBC04';
-                        if (sb.status === 'Creating' || sb.status === 'Bound') statusColor = '#4285F4';
+                        // Only log if status changed to prevent DOM bloating
+                        if (window.sbStates[sb.dog_name] !== sb.status) {
+                            window.sbStates[sb.dog_name] = sb.status;
+                            
+                            const timeStr = new Date().toLocaleTimeString();
+                            const line = document.createElement('div');
+                            line.className = 'terminal-log-line';
+                            line.style.marginTop = '4px';
+                            let statusColor = '#34A853';
+                            if (sb.status === 'Paused') statusColor = '#FBBC04';
+                            if (sb.status === 'Creating' || sb.status === 'Bound') statusColor = '#4285F4';
 
-                        line.innerHTML = `<span class="timestamp">[${timeStr}]</span> 
-                            <i class="fa-solid fa-cube" style="color: #94a3b8; font-size: 0.8rem;"></i> 
-                            <span style="color: #EA4335; font-weight:600;">${sb.dog_name}</span> <i class="fa-solid fa-arrow-right-long" style="font-size: 0.7rem; color: #6b7280;"></i> 
-                            <span style="color: #e2e8f0; font-family: monospace;">${sb.claim_name}</span> 
-                            <span style="color: #64748b; font-size: 0.75rem; margin-left: 6px; font-family: monospace;">(${sb.ip})</span>
-                            [<span style="color: ${statusColor}; font-weight: 600;">${sb.status}</span>]`;
-                        
-                        termFeed.appendChild(line);
+                            line.innerHTML = `<span class="timestamp">[${timeStr}]</span> 
+                                <i class="fa-solid fa-cube" style="color: #94a3b8; font-size: 0.8rem;"></i> 
+                                <span style="color: #EA4335; font-weight:600;">${sb.dog_name}</span> <i class="fa-solid fa-arrow-right-long" style="font-size: 0.7rem; color: #6b7280;"></i> 
+                                <span style="color: #e2e8f0; font-family: monospace;">${sb.claim_name}</span> 
+                                <span style="color: #64748b; font-size: 0.75rem; margin-left: 6px; font-family: monospace;">(${sb.ip})</span>
+                                [<span style="color: ${statusColor}; font-weight: 600;">${sb.status}</span>]`;
+                            
+                            termFeed.appendChild(line);
+                        }
                     });
                     
                     // Keep only last 200 lines to prevent DOM bloating
@@ -751,15 +757,42 @@
                     }
 
                     let card = document.getElementById(`dog-card-${dog.name}`);
-                    if (!card) {
-                        card = document.createElement('div');
-                        card.id = `dog-card-${dog.name}`;
-                        grid.appendChild(card);
-                    }
-                    
                     const sb = data.sandboxes ? data.sandboxes.find(s => s.dog_name === dog.name) : null;
                     const claimName = sb ? sb.claim_name : "No Claim";
 
+                    if (!card) {
+                        card = document.createElement('div');
+                        card.id = `dog-card-${dog.name}`;
+                        card.className = `glass-card dog-card ${flashClass}`;
+                        card.innerHTML = `
+                            <div class="dog-header">
+                                <div>
+                                    <div class="dog-name"></div>
+                                    <div class="dog-breed"></div>
+                                </div>
+                                <span class="status-badge"></span>
+                            </div>
+
+                            <div class="needs-container">
+                                <div class="pie-column">
+                                    <div class="pie-chart hunger-pie"><span></span></div>
+                                    <div class="pie-label">Hunger</div>
+                                </div>
+                                <div class="pie-column">
+                                    <div class="pie-chart energy-pie"><span></span></div>
+                                    <div class="pie-label">Energy</div>
+                                </div>
+                                <div class="pie-column">
+                                    <div class="pie-chart boredom-pie"><span></span></div>
+                                    <div class="pie-label">Boredom</div>
+                                </div>
+                            </div>
+
+                            <div class="bark-box"></div>
+                        `;
+                        grid.appendChild(card);
+                    }
+                    
                     card.className = `glass-card dog-card ${flashClass}`;
                     
                     let nameStyle = "display:flex; align-items:center;";
@@ -767,44 +800,36 @@
                         nameStyle += " color: #64748b;";
                     }
 
-                    card.innerHTML = `
-                        <div class="dog-header">
-                            <div>
-                                <div class="dog-name" style="${nameStyle}">${dog.name} ${stateAnim}</div>
-                                <div class="dog-breed">${dog.breed} - ${claimName}</div>
-                            </div>
-                            <span class="status-badge" style="background: ${statusColor}22; color: ${statusColor}; border: 1px solid ${statusColor}44">
-                                ${dog.state}
-                            </span>
-                        </div>
+                    const nameEl = card.querySelector('.dog-name');
+                    nameEl.style = nameStyle;
+                    nameEl.innerHTML = `${dog.name} ${stateAnim}`;
+                    
+                    card.querySelector('.dog-breed').innerText = `${dog.breed} - ${claimName}`;
+                    
+                    const badge = card.querySelector('.status-badge');
+                    badge.innerText = dog.state;
+                    badge.style.background = `${statusColor}22`;
+                    badge.style.color = statusColor;
+                    badge.style.border = `1px solid ${statusColor}44`;
 
-                        <div class="needs-container">
-                            <div class="pie-column">
-                                <div class="pie-chart" style="background: conic-gradient(#4285F4 0% ${dog.needs.hunger}%, rgba(255,255,255,0.04) ${dog.needs.hunger}% 100%)">
-                                    <span>${Math.round(dog.needs.hunger)}%</span>
-                                </div>
-                                <div class="pie-label">Hunger</div>
-                            </div>
-                            <div class="pie-column">
-                                <div class="pie-chart" style="background: conic-gradient(#EA4335 0% ${dog.needs.energy}%, rgba(255,255,255,0.04) ${dog.needs.energy}% 100%)">
-                                    <span>${Math.round(dog.needs.energy)}%</span>
-                                </div>
-                                <div class="pie-label">Energy</div>
-                            </div>
-                            <div class="pie-column">
-                                <div class="pie-chart" style="background: conic-gradient(#FBBC04 0% ${dog.needs.boredom}%, rgba(255,255,255,0.04) ${dog.needs.boredom}% 100%)">
-                                    <span>${Math.round(dog.needs.boredom)}%</span>
-                                </div>
-                                <div class="pie-label">Boredom</div>
-                            </div>
-                        </div>
+                    // Update pie charts
+                    const hungerPie = card.querySelector('.hunger-pie');
+                    hungerPie.style.background = `conic-gradient(#4285F4 0% ${dog.needs.hunger}%, rgba(255,255,255,0.04) ${dog.needs.hunger}% 100%)`;
+                    hungerPie.querySelector('span').innerText = `${Math.round(dog.needs.hunger)}%`;
 
-                        <div class="bark-box">
-                            ${data.tick > 0 && data.tick <= 5 
-                                ? `<i class="fa-solid fa-wand-magic-sparkles" style="color:var(--google-red); margin-right:6px;"></i> <b>Personality:</b> <span style="text-transform: uppercase; font-weight:800; color: #f8f9fa; margin-left:4px;">${dog.personality.replace('_', ' ')}</span>`
-                                : (dog.latest_bark || "Thinking of barking...")}
-                        </div>
-                    `;
+                    const energyPie = card.querySelector('.energy-pie');
+                    energyPie.style.background = `conic-gradient(#EA4335 0% ${dog.needs.energy}%, rgba(255,255,255,0.04) ${dog.needs.energy}% 100%)`;
+                    energyPie.querySelector('span').innerText = `${Math.round(dog.needs.energy)}%`;
+
+                    const boredomPie = card.querySelector('.boredom-pie');
+                    boredomPie.style.background = `conic-gradient(#FBBC04 0% ${dog.needs.boredom}%, rgba(255,255,255,0.04) ${dog.needs.boredom}% 100%)`;
+                    boredomPie.querySelector('span').innerText = `${Math.round(dog.needs.boredom)}%`;
+
+                    // Update bark box
+                    const barkBox = card.querySelector('.bark-box');
+                    barkBox.innerHTML = data.tick > 0 && data.tick <= 5 
+                        ? `<i class="fa-solid fa-wand-magic-sparkles" style="color:var(--google-red); margin-right:6px;"></i> <b>Personality:</b> <span style="text-transform: uppercase; font-weight:800; color: #f8f9fa; margin-left:4px;">${dog.personality.replace('_', ' ')}</span>`
+                        : (dog.latest_bark || "Thinking of barking...");
                 });
             };
 

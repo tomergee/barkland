@@ -55,12 +55,16 @@ class Sandbox:
         # Sandbox Management downstream dependency
         self.k8s_helper = k8s_helper or K8sHelper()
 
+        # Fetch Pod IP
+        pod_ip = self.get_pod_ip()
+
         # Establish Sandbox Connection
         self.connector = SandboxConnector(
             sandbox_id=self.sandbox_id, # Pass the base sandbox id to connect to.
             namespace=self.namespace,
             connection_config=self.connection_config,
-            k8s_helper=self.k8s_helper
+            k8s_helper=self.k8s_helper,
+            pod_ip=pod_ip
         )
 
         # Tracer initialization
@@ -87,6 +91,15 @@ class Sandbox:
         pod_name = annotations.get(POD_NAME_ANNOTATION)
         self._pod_name = pod_name if pod_name is not None else self.sandbox_id
         return self._pod_name
+
+    def get_pod_ip(self) -> str | None:
+        """Fetches the Sandbox object from Kubernetes and retrieves its current pod IP."""
+        sandbox_object = self.k8s_helper.get_sandbox(self.sandbox_id, self.namespace) or {}
+        status = sandbox_object.get('status') or {}
+        pod_ips = status.get('podIPs') or []
+        if pod_ips:
+            return pod_ips[0]
+        return None
 
     def status(self) -> tuple[str, str]:
         """

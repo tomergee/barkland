@@ -140,11 +140,13 @@ def create_sandbox_for_dog(dog_name: str):
         sandbox_clients[dog_name] = {"status": "Creating", "claim_name": f"barkland-sandbox-{dog_name.lower()}"}
         try:
              sandbox = client.create_sandbox(template="dog-agent-template", namespace="barkland")
+             sandbox_clients[dog_name]["status"] = "Running"
+             sandbox_clients[dog_name]["claim_name"] = sandbox.claim_name
              
              # Wait for the sandbox to be reachable via the router
              print(f"Waiting for sandbox {dog_name} to be reachable...")
              import time
-             reach_retries = 5
+             reach_retries = 15
              for r in range(reach_retries):
                  try:
                      res = sandbox.commands.run("echo ready", timeout=2)
