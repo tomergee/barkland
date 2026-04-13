@@ -576,6 +576,9 @@
                     <button id="reset-btn" class="btn btn-reset" title="Reset UI components. Only works when simulation is stopped or paused." onclick="resetUI()">
                         <i class="fa-solid fa-arrows-rotate"></i> Reset UI
                     </button>
+                    <button id="reset-warmpool-btn" class="btn btn-reset" title="Reset Warmpool. Deletes all claims and recreates the warmpool." onclick="resetWarmpool()" style="margin-left: 10px; background: linear-gradient(135deg, #EA4335 0%, #c53929 100%); box-shadow: 0 4px 15px rgba(234, 67, 53, 0.3);">
+                        <i class="fa-solid fa-trash-can"></i> Reset Warmpool
+                    </button>
                 </div>
                 <select id="duration-select" title="Set the duration for the simulation. Useful for observing fast scale-up and scale-down of isolated agent environments." style="background: rgba(255,255,255,0.05); color: #94a3b8; border: 1px solid rgba(255,255,255,0.08); font-size: 0.8rem; padding: 8px 12px; border-radius: 10px; cursor: pointer; font-family: 'Inter', sans-serif; width: 100%; outline: none;" onchange="this.blur()">
                     <option value="10">Timer: 10 Seconds</option>
@@ -689,6 +692,7 @@
                 if (data.sandboxes) {
                     let running = 0, paused = 0, created = 0;
                     const termFeed = document.getElementById('terminal-feed');
+                    const fragment = document.createDocumentFragment();
                     
                     if (!window.sbStates) window.sbStates = {};
                     data.sandboxes.forEach(sb => {
@@ -715,12 +719,16 @@
                                 <span style="color: #64748b; font-size: 0.75rem; margin-left: 6px; font-family: monospace;">(${sb.ip})</span>
                                 [<span style="color: ${statusColor}; font-weight: 600;">${sb.status}</span>]`;
                             
-                            termFeed.appendChild(line);
+                            fragment.appendChild(line);
                         }
                     });
                     
-                    // Keep only last 200 lines to prevent DOM bloating
-                    while (termFeed.childNodes.length > 200) {
+                    if (fragment.childNodes.length > 0) {
+                        termFeed.appendChild(fragment);
+                    }
+                    
+                    // Keep only last 50 lines to prevent DOM bloating
+                    while (termFeed.childNodes.length > 50) {
                         termFeed.removeChild(termFeed.firstChild);
                     }
                     
@@ -791,6 +799,35 @@
                             <div class="bark-box"></div>
                         `;
                         grid.appendChild(card);
+                        
+                        // Cache elements for performance
+                        card._elements = {
+                            name: card.querySelector('.dog-name'),
+                            breed: card.querySelector('.dog-breed'),
+                            badge: card.querySelector('.status-badge'),
+                            hungerPie: card.querySelector('.hunger-pie'),
+                            hungerSpan: card.querySelector('.hunger-pie span'),
+                            energyPie: card.querySelector('.energy-pie'),
+                            energySpan: card.querySelector('.energy-pie span'),
+                            boredomPie: card.querySelector('.boredom-pie'),
+                            boredomSpan: card.querySelector('.boredom-pie span'),
+                            barkBox: card.querySelector('.bark-box')
+                        };
+                    }
+                    
+                    if (!card._elements) {
+                        card._elements = {
+                            name: card.querySelector('.dog-name'),
+                            breed: card.querySelector('.dog-breed'),
+                            badge: card.querySelector('.status-badge'),
+                            hungerPie: card.querySelector('.hunger-pie'),
+                            hungerSpan: card.querySelector('.hunger-pie span'),
+                            energyPie: card.querySelector('.energy-pie'),
+                            energySpan: card.querySelector('.energy-pie span'),
+                            boredomPie: card.querySelector('.boredom-pie'),
+                            boredomSpan: card.querySelector('.boredom-pie span'),
+                            barkBox: card.querySelector('.bark-box')
+                        };
                     }
                     
                     card.className = `glass-card dog-card ${flashClass}`;
@@ -800,36 +837,31 @@
                         nameStyle += " color: #64748b;";
                     }
 
-                    const nameEl = card.querySelector('.dog-name');
-                    nameEl.style = nameStyle;
-                    nameEl.innerHTML = `${dog.name} ${stateAnim}`;
+                    const els = card._elements;
+                    els.name.style = nameStyle;
+                    els.name.innerHTML = `${dog.name} ${stateAnim}`;
                     
-                    card.querySelector('.dog-breed').innerText = `${dog.breed} - ${claimName}`;
+                    els.breed.innerText = `${dog.breed} - ${claimName}`;
                     
-                    const badge = card.querySelector('.status-badge');
-                    badge.innerText = dog.state;
-                    badge.style.background = `${statusColor}22`;
-                    badge.style.color = statusColor;
-                    badge.style.border = `1px solid ${statusColor}44`;
+                    els.badge.innerText = dog.state;
+                    els.badge.style.background = `${statusColor}22`;
+                    els.badge.style.color = statusColor;
+                    els.badge.style.border = `1px solid ${statusColor}44`;
 
                     // Update pie charts
-                    const hungerPie = card.querySelector('.hunger-pie');
-                    hungerPie.style.background = `conic-gradient(#4285F4 0% ${dog.needs.hunger}%, rgba(255,255,255,0.04) ${dog.needs.hunger}% 100%)`;
-                    hungerPie.querySelector('span').innerText = `${Math.round(dog.needs.hunger)}%`;
+                    els.hungerPie.style.background = `conic-gradient(#4285F4 0% ${dog.needs.hunger}%, rgba(255,255,255,0.04) ${dog.needs.hunger}% 100%)`;
+                    els.hungerSpan.innerText = `${Math.round(dog.needs.hunger)}%`;
 
-                    const energyPie = card.querySelector('.energy-pie');
-                    energyPie.style.background = `conic-gradient(#EA4335 0% ${dog.needs.energy}%, rgba(255,255,255,0.04) ${dog.needs.energy}% 100%)`;
-                    energyPie.querySelector('span').innerText = `${Math.round(dog.needs.energy)}%`;
+                    els.energyPie.style.background = `conic-gradient(#EA4335 0% ${dog.needs.energy}%, rgba(255,255,255,0.04) ${dog.needs.energy}% 100%)`;
+                    els.energySpan.innerText = `${Math.round(dog.needs.energy)}%`;
 
-                    const boredomPie = card.querySelector('.boredom-pie');
-                    boredomPie.style.background = `conic-gradient(#FBBC04 0% ${dog.needs.boredom}%, rgba(255,255,255,0.04) ${dog.needs.boredom}% 100%)`;
-                    boredomPie.querySelector('span').innerText = `${Math.round(dog.needs.boredom)}%`;
+                    els.boredomPie.style.background = `conic-gradient(#FBBC04 0% ${dog.needs.boredom}%, rgba(255,255,255,0.04) ${dog.needs.boredom}% 100%)`;
+                    els.boredomSpan.innerText = `${Math.round(dog.needs.boredom)}%`;
 
                     // Update bark box
-                    const barkBox = card.querySelector('.bark-box');
-                    barkBox.innerHTML = data.tick > 0 && data.tick <= 5 
+                    els.barkBox.innerHTML = data.tick > 0 && data.tick <= 5 
                         ? `<i class="fa-solid fa-wand-magic-sparkles" style="color:var(--google-red); margin-right:6px;"></i> <b>Personality:</b> <span style="text-transform: uppercase; font-weight:800; color: #f8f9fa; margin-left:4px;">${dog.personality.replace('_', ' ')}</span>`
-                        : (dog.latest_bark || "Thinking of barking...");
+                        : (dog.latest_bark || "Waiting for first response bark...");
                 });
             };
 
@@ -886,6 +918,8 @@
             document.querySelector('.btn-start').disabled = true;
             const resetBtn = document.getElementById('reset-btn');
             if (resetBtn) resetBtn.disabled = true;
+            const resetWarmpoolBtn = document.getElementById('reset-warmpool-btn');
+            if (resetWarmpoolBtn) resetWarmpoolBtn.disabled = true;
             
             // Extract count from input
             const countVal = parseInt(document.getElementById('dog-count').value) || 4;
@@ -906,13 +940,19 @@
             }
             
             document.getElementById('dogs-grid').innerHTML = '';
-            await fetch('/api/simulation/start', { 
+            const resp = await fetch('/api/simulation/start', { 
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ count: countVal })
             });
+            
+            if (!resp.ok) {
+                const errData = await resp.json();
+                alert(errData.detail || 'Failed to start simulation');
+                return;
+            }
             
             if (simTimeout) clearTimeout(simTimeout);
             if (countdownInterval) clearInterval(countdownInterval);
@@ -963,7 +1003,9 @@
             startBtn.style.opacity = '0.5';
             startBtn.style.cursor = 'not-allowed';
             startBtn.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> Replenishing...';
+            const resetWarmpoolBtn = document.getElementById('reset-warmpool-btn');
             if (resetBtn) resetBtn.disabled = true;
+            if (resetWarmpoolBtn) resetWarmpoolBtn.disabled = true;
             
             setTimeout(() => {
                 startBtn.disabled = false;
@@ -971,7 +1013,8 @@
                 startBtn.style.cursor = 'pointer';
                 startBtn.innerHTML = '<i class="fa-solid fa-play"></i> Start Sim';
                 if (resetBtn) resetBtn.disabled = false;
-            }, 5000);
+                if (resetWarmpoolBtn) resetWarmpoolBtn.disabled = false;
+            }, 8000);
             if (simTimeout) clearTimeout(simTimeout);
             if (countdownInterval) clearInterval(countdownInterval);
             document.getElementById('countdown-timer').style.display = 'none';
@@ -998,8 +1041,53 @@
             
             // Reset active dogs count
             document.getElementById('dogs-val').innerText = '0';
-            
+        }
 
+        async function resetWarmpool() {
+            const startBtn = document.querySelector('.btn-start');
+            if (startBtn.disabled || startBtn.innerText.includes("Replenishing")) {
+                alert("Cannot reset warmpool while simulation is running or replenishing!");
+                return;
+            }
+            
+            if (!confirm("Are you sure you want to reset the warmpool? This will delete all claims and recreate the warmpool.")) {
+                return;
+            }
+            
+            const buttons = document.querySelectorAll('.btn, select');
+            buttons.forEach(b => b.disabled = true);
+            
+            const resetBtn = document.getElementById('reset-warmpool-btn');
+            resetBtn.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> Resetting...';
+            
+            let timerDone = false;
+            let fetchDone = false;
+            
+            setTimeout(() => {
+                timerDone = true;
+                if (fetchDone) {
+                    restoreButtons();
+                }
+            }, 10000); // 10 seconds
+            
+            function restoreButtons() {
+                buttons.forEach(b => b.disabled = false);
+                resetBtn.innerHTML = '<i class="fa-solid fa-trash-can"></i> Reset Warmpool';
+                checkDurationLimit(); // Restore select disabled state if needed
+            }
+            
+            try {
+                const resp = await fetch('/api/simulation/reset_warmpool', { method: 'POST' });
+                const data = await resp.json();
+                alert(data.status);
+            } catch (e) {
+                alert("Failed to reset warmpool: " + e);
+            } finally {
+                fetchDone = true;
+                if (timerDone) {
+                    restoreButtons();
+                }
+            }
         }
     </script>
 </body>

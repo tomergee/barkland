@@ -41,7 +41,7 @@ if [ "${USE_LOCAL_AGENT_SANDBOX}" = "true" ]; then
     (cd ../agent-sandbox && ./dev/tools/push-images --image-prefix ${IMAGE_PREFIX} --controller-only --image-tag ${IMAGE_TAG})
     
     # Deploy
-    CONTROLLER_ARGS="--leader-elect=true --extensions=true --sandbox-concurrent-workers=600 --sandbox-claim-concurrent-workers=600 --sandbox-warm-pool-concurrent-workers=600 --kube-api-qps=600 --kube-api-burst=600"
+    CONTROLLER_ARGS="--leader-elect=true --extensions=true --sandbox-concurrent-workers=600 --sandbox-claim-concurrent-workers=600 --sandbox-warm-pool-concurrent-workers=600 --kube-api-qps=1000 --kube-api-burst=1000"
     (cd ../agent-sandbox && ./dev/tools/deploy-to-kube --image-prefix ${IMAGE_PREFIX} --extensions --image-tag ${IMAGE_TAG} --controller-args "${CONTROLLER_ARGS}")
 else
     AGENT_SANDBOX_VERSION="v0.2.1"
@@ -58,8 +58,8 @@ kubectl patch deployment agent-sandbox-controller -n agent-sandbox-system --type
     "--sandbox-concurrent-workers=600",
     "--sandbox-claim-concurrent-workers=600",
     "--sandbox-warm-pool-concurrent-workers=600",
-    "--kube-api-qps=600",
-    "--kube-api-burst=600"
+    "--kube-api-qps=1000",
+    "--kube-api-burst=1000"
   ]}
 ]'
 
@@ -83,6 +83,9 @@ export PROJECT_ID CLUSTER_LOCATION REGISTRY_LOCATION CLUSTER_NAME NAMESPACE REPO
 for file in k8s/*.yaml; do
     envsubst '$PROJECT_ID $CLUSTER_LOCATION $REGISTRY_LOCATION $CLUSTER_NAME $NAMESPACE $REPO $WARMPOOL_REPLICAS $SPEED_MS $SPEAK_BATCH_SIZE' < "$file" | kubectl apply -f -
 done
+
+echo "Ensuring sandbox-router has 4 replicas for high capacity..."
+kubectl scale deployment sandbox-router-deployment --replicas=4 -n ${NAMESPACE}
 
 kubectl rollout restart deployment/barkland-orchestrator -n ${NAMESPACE}
 

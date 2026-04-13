@@ -33,6 +33,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 
 # Copy source code
 COPY barkland/ ./barkland/
+COPY k8s/ ./k8s/
 
 # Expose port (FastAPI default, but can be configured)
 EXPOSE 8000

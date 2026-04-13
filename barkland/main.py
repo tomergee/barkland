@@ -1,7 +1,8 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.responses import HTMLResponse
 from typing import Dict, List, Any
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 import os
 import random
 from pydantic import BaseModel, Field
@@ -126,6 +127,8 @@ from barkland.agents.dog_agent import DogAgent
 connected_clients: List[WebSocket] = []
 sandbox_clients: Dict[str, Any] = {}
 dog_agents: Dict[str, DogAgent] = {dog.name: DogAgent(dog) for dog in sim.dogs.values()}
+speak_executor = ThreadPoolExecutor(max_workers=50)
+creation_executor = ThreadPoolExecutor(max_workers=50)
 
 def create_sandbox_for_dog(dog_name: str):
     """Background thread target to allocate SandboxClaim without item locks blocking FastAPI context triggers."""
@@ -139,17 +142,16 @@ def create_sandbox_for_dog(dog_name: str):
     for attempt in range(max_retries):
         sandbox_clients[dog_name] = {"status": "Creating", "claim_name": f"barkland-sandbox-{dog_name.lower()}"}
         try:
-             sandbox = client.create_sandbox(template="dog-agent-template", namespace="barkland")
+             sandbox = client.create_sandbox(template="dog-agent-template", namespace="barkland", sandbox_ready_timeout=10)
              sandbox_clients[dog_name]["status"] = "Running"
              sandbox_clients[dog_name]["claim_name"] = sandbox.claim_name
              
-             # Wait for the sandbox to be reachable via the router
              print(f"Waiting for sandbox {dog_name} to be reachable...")
              import time
              reach_retries = 15
              for r in range(reach_retries):
                  try:
-                     res = sandbox.commands.run("echo ready", timeout=2)
+                     res = sandbox.commands.run("echo ready", timeout=5)
                      if res.exit_code == 0:
                          print(f"Sandbox {dog_name} is reachable!")
                          break
@@ -204,7 +206,7 @@ async def start_simulation(req: StartSimulationRequest):
         # 4. Run in background via asyncio task passing names list
         asyncio.create_task(run_simulation(names))
         return {"status": f"Simulation started with {req.count} dogs"}
-    return {"status": "Simulation already running"}
+    raise HTTPException(status_code=409, detail="Another simulation is already running right now. Please wait.")
 
 @app.post("/api/simulation/stop")
 def stop_simulation():
@@ -213,11 +215,61 @@ def stop_simulation():
     # Cleanup old sandbox claims fully to prevent leaks and race conditions
     for dog_name in list(sandbox_clients.keys()):
         sandbox = sandbox_clients.pop(dog_name, None)
-        if sandbox and not isinstance(sandbox, dict):
-            print(f"Terminating sandbox for {dog_name} on stop...")
-            threading.Thread(target=sandbox.terminate, daemon=True).start()
+        if sandbox:
+            if not isinstance(sandbox, dict):
+                print(f"Terminating sandbox for {dog_name} on stop...")
+                threading.Thread(target=sandbox.terminate, daemon=True).start()
+            else:
+                claim_name = sandbox.get("claim_name")
+                if claim_name:
+                    print(f"Deleting orphaned claim {claim_name} for {dog_name} on stop...")
+                    def delete_claim(name):
+                        import subprocess
+                        try:
+                            subprocess.run(["kubectl", "delete", "sandboxclaim", name, "-n", "barkland"], check=True, capture_output=True)
+                        except Exception as e:
+                            print(f"Failed to delete claim {name}: {e}")
+                    threading.Thread(target=delete_claim, args=(claim_name,), daemon=True).start()
         
     return {"status": "Simulation stopped and targeted cleanup initiated"}
+
+@app.post("/api/simulation/reset_warmpool")
+async def reset_warmpool():
+    if sim.is_running:
+        raise HTTPException(status_code=400, detail="Cannot reset warmpool while simulation is running")
+        
+    try:
+        # 1. Delete all claims
+        subprocess.run(["kubectl", "delete", "sandboxclaims", "--all", "-n", "barkland"], check=True, capture_output=True)
+        
+        # 2. Delete warmpool
+        subprocess.run(["kubectl", "delete", "sandboxwarmpool", "dog-agent-warmpool", "-n", "barkland", "--ignore-not-found=true"], check=True, capture_output=True)
+        
+        # 3. Recreate warmpool
+        with open("k8s/sandbox_warmpool.yaml", "r") as f:
+            template = f.read()
+        
+        namespace = os.getenv("NAMESPACE", "barkland")
+        replicas = os.getenv("WARMPOOL_REPLICAS", "200")
+        
+        manifest = template.replace("${NAMESPACE}", namespace).replace("${WARMPOOL_REPLICAS}", replicas)
+        
+        subprocess.run(["kubectl", "apply", "-f", "-"], input=manifest.encode(), check=True, capture_output=True)
+        
+        # 4. Wait for replicas (up to 60 seconds)
+        target = int(replicas)
+        ready = "0"
+        for _ in range(12): # 12 * 5 = 60 seconds
+            result = subprocess.run(["kubectl", "get", "sandboxwarmpool", "dog-agent-warmpool", "-n", "barkland", "-o", "jsonpath={.status.readyReplicas}"], capture_output=True, text=True)
+            ready = result.stdout.strip() or "0"
+            if ready == str(target):
+                return {"status": f"Warmpool reset complete. All {target} pods are ready."}
+            await asyncio.sleep(5)
+            
+        return {"status": f"Warmpool reset initiated. Timed out waiting for full replenishment. Current ready: {ready}/{target}"}
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to reset warmpool: {e}")
 
 def patch_sandbox_replicas(sandbox, replicas: int):
     try:
@@ -237,6 +289,7 @@ def patch_sandbox_replicas(sandbox, replicas: int):
 
 async def run_simulation(names: List[str]):
     sim.is_running = True
+    sim.start_time = time.time()
     from barkland.agents.dog_agent import DogAgent
     # generate_unique_dog_names is available globally in this file
     
@@ -275,11 +328,11 @@ async def run_simulation(names: List[str]):
         # Start Sandbox claim thread allocation layout triggers Accuracy creators layout inaccuracies
         if SandboxClient:
              print(f"Spawning sandbox thread for {name}")
-             threading.Thread(target=create_sandbox_for_dog, args=(name,), daemon=True).start()
+             creation_executor.submit(create_sandbox_for_dog, name)
               
         # Broadcast immediately so UI renders this card individually layout Accurate triggers payout list Accurate setups
         await broadcast_state()
-        #await asyncio.sleep(0.05) # 50ms stagger spacing rolling creation
+        await asyncio.sleep(0.05) # 50ms stagger spacing rolling creation
 
     while sim.is_running and sim.tick_count < sim.config.num_ticks:
         await sim.step()
@@ -291,7 +344,7 @@ async def run_simulation(names: List[str]):
             client = sandbox_clients.get(name)
             # Ensure client is a Sandbox object and not the placeholder dict
             if client and not isinstance(client, dict):
-                if dog.state == DogState.SLEEPING:
+                if dog.state == DogState.SLEEPING and (time.time() - getattr(sim, "start_time", 0) >= 15):
                     if not getattr(client, "is_paused", False):
                         try:
                             client.is_paused = True # eagerly mark
@@ -342,7 +395,7 @@ async def run_simulation(names: List[str]):
                                 if sandbox and hasattr(sandbox, "commands") and sandbox.commands:
                                     cmd = f"python -m barkland.agents.remote_speak --name '{a_dog.name}' --breed '{a_dog.breed}' --personality '{a_dog.personality.value}' --state '{a_dog.state.value}' --energy {a_dog.needs.energy} --hunger {a_dog.needs.hunger} --boredom {a_dog.needs.boredom}"
                                     logger.info(f"Running command in sandbox for {a_dog.name}: {cmd}")
-                                    exec_res = sandbox.commands.run(cmd, timeout=120)
+                                    exec_res = sandbox.commands.run(cmd, timeout=5)
                                     if exec_res.exit_code == 0:
                                         try:
                                             output = json.loads(exec_res.stdout)
@@ -372,10 +425,12 @@ async def run_simulation(names: List[str]):
                                 res = an_agent.get_mock_response()
                                 a_dog.latest_bark = f"{res.bark} <span style='font-weight: 600; color:#a855f7; display:block; margin-top:4px; font-size:0.8rem;'>({res.translation})</span>"
                         
-                        threading.Thread(target=speak_and_update_thread, args=(dog, agent), daemon=True).start()
+                        speak_executor.submit(speak_and_update_thread, dog, agent)
 
 
-        await broadcast_state()
+        # Broadcast state every 3 ticks to avoid overloading the UI
+        if sim.tick_count % 3 == 0 or sim.tick_count >= sim.config.num_ticks:
+            await broadcast_state()
             
         await asyncio.sleep(sim.config.speed_ms / 1000.0)
         

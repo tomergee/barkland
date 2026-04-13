@@ -5,42 +5,59 @@
 # 1. API Keys & Authentication
 # ------------------------------------------
 # Your Google Gemini Developer API Key (If not using Vertex AI)
-GEMINI_API_KEY="your_api_key_here"
+# GEMINI_API_KEY="your_api_key_here"
 
 # Vertex AI ADC overriding configuration
-GOOGLE_GENAI_USE_VERTEXAI=TRUE
-GOOGLE_CLOUD_PROJECT=your_project_id
-GOOGLE_CLOUD_LOCATION=your_location
-GOOGLE_GENAI_MODEL_NAME=gemini-2.5-flash
+# GOOGLE_GENAI_USE_VERTEXAI=TRUE
+# GOOGLE_CLOUD_PROJECT="gke-ai-eco-dev"
+# GOOGLE_CLOUD_LOCATION="us-central1"
+# GOOGLE_GENAI_MODEL_NAME="gemini-2.5-flash"
 
 # Set to "local" running outside of GKE Sandbox to bypass kubernetes network steps.
 # In production (GKE), leave this empty or set to "production".
-ENVIRONMENT=local
+# ENVIRONMENT="local"
 
 
 # 2. GKE Deployment Configuration (Used by deploy.sh)
 # ------------------------------------------
-PROJECT_ID="your_project_id"
-CLUSTER_LOCATION="your_cluster_location"
-REGISTRY_LOCATION="your_registry_location"
-CLUSTER_NAME="your-cluster-name"
+# Google Cloud Project ID where resources are deployed
+PROJECT_ID="gke-ai-eco-dev"
+
+# Region/Location of the GKE cluster
+CLUSTER_LOCATION="us-central1"
+
+# Region/Location of the Artifact Registry
+REGISTRY_LOCATION="us-central1"
+
+# Name of the GKE cluster
+CLUSTER_NAME="barkland-brust"
+
+# Kubernetes Namespace for Barkland resources
 NAMESPACE="barkland"
+
+# Artifact Registry repository name
 REPO="barkland"
-WARMPOOL_REPLICAS="100
+
+# Number of warm pool replicas to maintain for fast sandbox assignment
+WARMPOOL_REPLICAS="200"
 
 # Set to "true" to build and install Agent Sandbox from local repo (../agent-sandbox)
-USE_LOCAL_AGENT_SANDBOX="false"
+USE_LOCAL_AGENT_SANDBOX="true"
 
 
-# 3. Simulation Engine Configuration
+# 3. Simulation Engine Configuration - Main loop runs in tick steps
 # ------------------------------------------
 # Override default simulation variables
 NUM_DOGS="5"
 NUM_TICKS="10"
+
+# Simulation speed in milliseconds (time between ticks)
 SPEED_MS="1000"
-SEED="42"
-# Number of dogs prompted to speak per batch
-SPEAK_BATCH_SIZE="20
+
+# SEED="42"
+
+# Number of dogs prompted to speak per batch in each tick
+SPEAK_BATCH_SIZE="15"
 
 # Filepath for writing the simulation JSON event log
 # LOG_FILE="simulation.log"
@@ -49,4 +66,4 @@ SPEAK_BATCH_SIZE="20
 # 4. Kubernetes / Sandbox Integration
 # ------------------------------------------
 # Overrides the router URL when running with the K8s Orchestrator
-SANDBOX_ROUTER_URL="http://sandbox-router-svc:8080"
+# SANDBOX_ROUTER_URL="http://sandbox-router-svc:8080"

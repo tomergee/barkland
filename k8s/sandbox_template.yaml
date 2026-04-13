@@ -19,8 +19,8 @@ spec:
             # NOTE: If the above is commented out, it uses Workload Identity (Vertex AI).
           resources:
             requests:
-              cpu: "2"
-              memory: "2Gi"
+              cpu: "1"
+              memory: "512Mi"
             limits:
-              cpu: "2"
-              memory: "2Gi"
+              cpu: "1"
+              memory: "512Mi"

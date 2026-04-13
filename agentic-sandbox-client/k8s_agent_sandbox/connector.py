@@ -238,7 +238,7 @@ class SandboxConnector:
             headers["X-Sandbox-Port"] = str(self.connection_config.server_port)
             kwargs["headers"] = headers
 
-            # Send the request
+            kwargs['timeout'] = 5
             response = self.session.request(method, url, **kwargs)
             response.raise_for_status()
             return response
