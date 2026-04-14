@@ -190,7 +190,15 @@ async def speak_and_update(a_dog, an_agent):
         import json
         sandbox = sandbox_clients.get(a_dog.name)
         if sandbox and hasattr(sandbox, "commands") and sandbox.commands:
-            cmd = f"python -m barkland.agents.remote_speak --name '{a_dog.name}' --breed '{a_dog.breed}' --personality '{a_dog.personality.value}' --state '{a_dog.state.value}' --energy {a_dog.needs.energy} --hunger {a_dog.needs.hunger} --boredom {a_dog.needs.boredom}"
+            use_vertex = os.getenv("USE_VERTEX_AI", "false").lower() == "true"
+            project_id = os.getenv("PROJECT_ID")
+            location = os.getenv("VERTEX_LOCATION", os.getenv("CLUSTER_LOCATION", "us-central1"))
+            
+            model_name = "gemini-2.5-flash-lite"
+            if use_vertex and project_id:
+                model_name = f"projects/{project_id}/locations/{location}/publishers/google/models/gemini-2.5-flash-lite"
+                
+            cmd = f"python -m barkland.agents.remote_speak --name '{a_dog.name}' --breed '{a_dog.breed}' --personality '{a_dog.personality.value}' --state '{a_dog.state.value}' --energy {a_dog.needs.energy} --hunger {a_dog.needs.hunger} --boredom {a_dog.needs.boredom} --model '{model_name}'"
             logger.info(f"Running command in sandbox for {a_dog.name}: {cmd}")
             exec_res = await sandbox.commands.run(cmd, timeout=2)
             if exec_res.exit_code == 0:

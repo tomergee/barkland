@@ -29,6 +29,20 @@ The system consists of the following components:
 
 ---
 
+## 🚀 Recent Optimizations & Features
+
+*   **Asynchronous Orchestration**: Migrated from blocking thread pools to native `asyncio` for sandbox management and agent interactions, significantly improving concurrency and scaling capabilities.
+*   **Inference Optimization**:
+    *   **Reduced Latency**: Eliminated tool-based state lookups (e.g., `needs`, `smells`) to remove multi-turn LLM round-trips.
+    *   **Prompt Inlining**: Inlined agent state and environment context directly into the system prompt for immediate reactivity.
+    *   **Token Limiting**: Constrained agent responses to `max_output_tokens=200` to reduce Time to First Token (TTFT) and cost.
+*   **Vertex AI Integration**:
+    *   Configurable via `.configuration` with `USE_VERTEX_AI="true"`.
+    *   Automatically constructs full resource paths for models to leverage Vertex AI enterprise quotas.
+    *   Works seamlessly with Workload Identity for keyless authentication.
+
+---
+
 ## 🛠️ Technologies Used
 
 *   **Google ADK (Agent Development Kit)**: Provides the fundamental LLM agent building blocks (like `LlmAgent` and tools) to construct the dog agents' behaviors and personalities.
@@ -51,8 +65,8 @@ Before deploying, ensure you have set up the following:
 -   **Pre-installed agent-sandbox Controller**:
     *   The `deploy.sh` script automatically installs the core and extensions components of `agent-sandbox` directly from the official GitHub releases.
 -   **Model Authentication (Choose One)**:
-    *   **Option A: Workload Identity (Vertex AI)**: The `barkland-orchestrator-sa` Kubernetes Service Account can be granted access to Vertex AI using Workload Identity Federation (Principal Identifiers). See [Workload Identity Federation Setup](#-workload-identity-federation-setup) for step-by-step instructions.
-    *   **Option B: Gemini API Key**: Set `GEMINI_API_KEY` in your local environment. The deployment script uses this to create a Kubernetes secret for agent capabilities.
+    *   **Option A: Vertex AI (Recommended)**: Enable by setting `USE_VERTEX_AI="true"` in `.configuration`. Access is granted via Workload Identity. See [Workload Identity Federation Setup](#-workload-identity-federation-setup) for step-by-step instructions.
+    *   **Option B: Gemini API Key**: Set `GEMINI_API_KEY` in your local environment or `.configuration`. The deployment script uses this to create a Kubernetes secret for agent capabilities.
 -   **Local Tooling**:
     *   `gcloud` CLI initialized to your target project/cluster.
     *   `kubectl` authenticated.
@@ -67,6 +81,9 @@ Barkland uses a Kubernetes secret to securely manage the Gemini API key for the 
 *   **Secret Name**: `gemini-api-key`
 *   **Creation**: The `deploy.sh` script automatically creates or updates this secret in the target namespace if the `GEMINI_API_KEY` environment variable is set on your local machine (or in the `.configuration` file).
 *   **Usage**: The `barkland-orchestrator` deployment mounts this secret as an environment variable (`GEMINI_API_KEY`), which the Python code uses to authenticate with the Gemini API.
+
+> [!NOTE]
+> If you are using Vertex AI (`USE_VERTEX_AI="true"` in `.configuration`), you do not need to manage this secret. Please refer to the [Workload Identity Federation Setup](#-workload-identity-federation-setup) for keyless authentication.
 
 ---
 
@@ -200,12 +217,15 @@ Before deploying, ensure you have created a `.configuration` file in the root of
 ```bash
 cat <<EOF > .configuration
 PROJECT_ID="your-project-id"
-CLUSTER_LOCATION="us-central1-a" # e.g. Zone for the cluster
-REGISTRY_LOCATION="us-central1"  # e.g. Region for the Artifact Registry
+CLUSTER_LOCATION="us-central1"
+REGISTRY_LOCATION="us-central1"
 CLUSTER_NAME="your-cluster-name"
 NAMESPACE="barkland"
 REPO="barkland"
-WARMPOOL_REPLICAS="10"
+WARMPOOL_REPLICAS="200"
+USE_LOCAL_AGENT_SANDBOX="true"
+USE_VERTEX_AI="true"
+VERTEX_LOCATION="us-central1"
 EOF
 ```
 
@@ -279,13 +299,13 @@ kubectl patch deployment agent-sandbox-controller -n agent-sandbox-system --type
     "--sandbox-concurrent-workers=600",
     "--sandbox-claim-concurrent-workers=600",
     "--sandbox-warm-pool-concurrent-workers=600",
-    "--kube-api-qps=600",
-    "--kube-api-burst=600"
+    "--kube-api-qps=1000",
+    "--kube-api-burst=1000"
   ]}
 ]'
 ```
 
-These settings increase the number of concurrent workers for each controller to 600 and raise the Kubernetes API client limits to 600 QPS/Burst, preventing throttling during massive scale-ups.
+These settings increase the number of concurrent workers for each controller to 600 and raise the Kubernetes API client limits to 1000 QPS/Burst, preventing throttling during massive scale-ups.
 
 
 ## Building and Deploying from Local `agent-sandbox` Repo

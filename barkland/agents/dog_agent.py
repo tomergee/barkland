@@ -16,19 +16,19 @@ class DogAgent:
     """
     Dog Agent wrapping an ADK LlmAgent with FSM.
     """
-    def __init__(self, profile: DogProfile):
+    def __init__(self, profile: DogProfile, model: str = "gemini-2.5-flash-lite"):
         self.profile = profile
         self.instruction = self._generate_instruction()
         
         # Initialize ADK Agent
         self.agent = LlmAgent(
             name=f"dog_agent_{self.profile.name.lower().replace(' ', '_').replace('.', '')}",
-            model="gemini-2.5-flash-lite",
+            model=model,
             instruction=self.instruction,
             output_schema=BarkResponse,
             output_key="bark_response",
             generate_content_config=types.GenerateContentConfig(
-                max_output_tokens=200
+                max_output_tokens=250
             )
         )
     def _generate_instruction(self) -> str:

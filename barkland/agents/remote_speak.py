@@ -14,6 +14,7 @@ async def main():
     parser.add_argument("--energy", type=float, required=True)
     parser.add_argument("--hunger", type=float, required=True)
     parser.add_argument("--boredom", type=float, required=True)
+    parser.add_argument("--model", default="gemini-2.5-flash-lite")
     
     args = parser.parse_args()
     
@@ -26,7 +27,7 @@ async def main():
             needs=DogNeeds(energy=args.energy, hunger=args.hunger, boredom=args.boredom)
         )
         
-        agent = DogAgent(profile)
+        agent = DogAgent(profile, model=args.model)
         res = await agent.speak()
         
         # Output JSON to stdout
