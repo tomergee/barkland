@@ -1079,7 +1079,11 @@
             try {
                 const resp = await fetch('/api/simulation/reset_warmpool', { method: 'POST' });
                 const data = await resp.json();
-                alert(data.status);
+                if (!resp.ok) {
+                    alert(data.detail || 'Failed to reset warmpool');
+                } else {
+                    alert(data.status);
+                }
             } catch (e) {
                 alert("Failed to reset warmpool: " + e);
             } finally {
