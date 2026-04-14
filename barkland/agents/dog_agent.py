@@ -25,9 +25,11 @@ class DogAgent:
             name=f"dog_agent_{self.profile.name.lower().replace(' ', '_').replace('.', '')}",
             model="gemini-2.5-flash-lite",
             instruction=self.instruction,
-            tools=[self.get_needs_tool(), self.get_surroundings_tool(), self.get_sniff_tool()],
             output_schema=BarkResponse,
-            output_key="bark_response"
+            output_key="bark_response",
+            generate_content_config=types.GenerateContentConfig(
+                max_output_tokens=200
+            )
         )
     def _generate_instruction(self) -> str:
         base = f"""You are a dog named {self.profile.name}, a {self.profile.breed}.
@@ -36,7 +38,6 @@ Your personality type is: {self.profile.personality.value}.
 
 Your core task is to express your current state and needs through barks, growls, and body language.
 You are in a simulation park.
-You can use tools to check your needs or sniff around for context.
 
 When asked to action or bark:
 1. Review your internal state (Needs, current state).
@@ -47,13 +48,24 @@ When asked to action or bark:
 
     async def speak(self) -> BarkResponse:
          """
-         Generate a bark using Gemini Flash (Bypassed with dummy for local setup trigger visual verification).
+         Generate a bark using Gemini Flash.
          """
          import random
          from barkland.models.dog import Personality, DogState
 
+         smells = [
+             "a hint of bacon from a nearby picnic",
+             "the distinct scent of a rival cat",
+             "fresh grass and morning dew",
+             "an old tennis ball buried nearby",
+             "the trail of a squirrel"
+         ]
+         current_smell = random.choice(smells)
+
          prompt = (
-              f"React to your current state: {self.profile.state.name}. "
+              f"React to your current state: {self.profile.state.name}.\n"
+              f"Your current needs are: energy={self.profile.needs.energy}, hunger={self.profile.needs.hunger}, boredom={self.profile.needs.boredom}.\n"
+              f"You sniff around and smell: {current_smell}.\n"
               "The 'bark' needs to be a short sound and action description. "
               "The 'translation' is your humorous internal monologue reflecting your personality and current state. "
               "You can be influenced by the examples but invent your own style reflecting your personality, also keep it short."
@@ -157,28 +169,4 @@ When asked to action or bark:
          return BarkResponse(bark=lines[idx][0], translation=lines[idx][1])
 
 
-    def get_needs_tool(self) -> Callable:
-         # ADK Tool skeleton
-         def check_needs():
-             return self.profile.needs.__dict__
-         return check_needs
 
-    def get_surroundings_tool(self) -> Callable:
-         def check_surroundings():
-              # Return other dogs state, etc.
-              return {"simulation_time": "tick"}
-         return check_surroundings
-
-    def get_sniff_tool(self) -> Callable:
-         def sniff_around():
-              """Sniff the ground to find interesting smells."""
-              import random
-              smells = [
-                  "a hint of bacon from a nearby picnic",
-                  "the distinct scent of a rival cat",
-                  "fresh grass and morning dew",
-                  "an old tennis ball buried nearby",
-                  "the trail of a squirrel"
-              ]
-              return {"smell": random.choice(smells)}
-         return sniff_around
