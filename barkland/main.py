@@ -34,13 +34,13 @@ from barkland.models.dog import DogProfile, Personality, DogState
 import threading
 try:
     if is_local:
-        SandboxClient = None # Force fallback out of K8s Sandbox connections
+        AsyncSandboxClient = None # Force fallback out of K8s Sandbox connections
         SandboxDirectConnectionConfig = None
     else:
-        from k8s_agent_sandbox import SandboxClient
+        from k8s_agent_sandbox import AsyncSandboxClient
         from k8s_agent_sandbox.models import SandboxDirectConnectionConfig
 except ImportError:
-    SandboxClient = None # Fallback for local testing without SDK
+    AsyncSandboxClient = None # Fallback for local testing without SDK
     SandboxDirectConnectionConfig = None
 
 class ExecuteRequest(BaseModel):
@@ -52,6 +52,11 @@ class ExecuteResponse(BaseModel):
     exit_code: int
 
 app = FastAPI()
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    if global_sandbox_client:
+        await global_sandbox_client.close()
 
 @app.post("/execute", response_model=ExecuteResponse)
 async def execute_command(request: ExecuteRequest):
@@ -127,44 +132,43 @@ from barkland.agents.dog_agent import DogAgent
 connected_clients: List[WebSocket] = []
 sandbox_clients: Dict[str, Any] = {}
 dog_agents: Dict[str, DogAgent] = {dog.name: DogAgent(dog) for dog in sim.dogs.values()}
-speak_executor = ThreadPoolExecutor(max_workers=50)
-creation_executor = ThreadPoolExecutor(max_workers=50)
 
-def create_sandbox_for_dog(dog_name: str):
-    """Background thread target to allocate SandboxClaim without item locks blocking FastAPI context triggers."""
-    if not SandboxClient:
-         return
+global_sandbox_client = None
+if AsyncSandboxClient:
     import os
     router_url = os.getenv("SANDBOX_ROUTER_URL", "http://sandbox-router-svc:8080")
     connection_config = SandboxDirectConnectionConfig(api_url=router_url, server_port=8000)
-    client = SandboxClient(connection_config=connection_config)
-    max_retries = 3
+    global_sandbox_client = AsyncSandboxClient(connection_config=connection_config)
+async def create_sandbox_for_dog(dog_name: str):
+    """Allocate SandboxClaim asynchronously."""
+    if not global_sandbox_client:
+         return
+    
+    max_retries = 10
     for attempt in range(max_retries):
         sandbox_clients[dog_name] = {"status": "Creating", "claim_name": f"barkland-sandbox-{dog_name.lower()}"}
         try:
-             sandbox = client.create_sandbox(template="dog-agent-template", namespace="barkland", sandbox_ready_timeout=10)
+             sandbox = await global_sandbox_client.create_sandbox(template="dog-agent-template", namespace="barkland", sandbox_ready_timeout=10)
              sandbox_clients[dog_name]["status"] = "Running"
              sandbox_clients[dog_name]["claim_name"] = sandbox.claim_name
              
              print(f"Waiting for sandbox {dog_name} to be reachable...")
-             import time
-             reach_retries = 15
+             reach_retries = 5
              for r in range(reach_retries):
                  try:
-                     res = sandbox.commands.run("echo ready", timeout=5)
+                     res = await sandbox.commands.run("echo ready", timeout=2)
                      if res.exit_code == 0:
                          print(f"Sandbox {dog_name} is reachable!")
                          break
                  except Exception as reach_err:
                      print(f"Sandbox {dog_name} not reachable yet (attempt {r+1}/{reach_retries}): {reach_err}")
-                     time.sleep(0.5)
+                     await asyncio.sleep(0.5)
              else:
                  print(f"Sandbox {dog_name} failed to become reachable in time.")
                  raise Exception("Sandbox not reachable")
 
              sandbox_clients[dog_name] = sandbox
              
-             # Track resolution time for profiling
              print(f"Sandbox bound for {dog_name} on attempt {attempt+1}")
              break
              
@@ -177,7 +181,44 @@ def create_sandbox_for_dog(dog_name: str):
                   import random
                   jitter = random.uniform(0.5, 1.2)
                   print(f"Retrying sandbox creation for {dog_name} in {jitter:.2f} seconds...")
-                  time.sleep(jitter)
+                  await asyncio.sleep(jitter)
+async def speak_and_update(a_dog, an_agent):
+    try:
+        logger.info(f"Calling speak for {a_dog.name}...")
+        start_time = time.time()
+        
+        import json
+        sandbox = sandbox_clients.get(a_dog.name)
+        if sandbox and hasattr(sandbox, "commands") and sandbox.commands:
+            cmd = f"python -m barkland.agents.remote_speak --name '{a_dog.name}' --breed '{a_dog.breed}' --personality '{a_dog.personality.value}' --state '{a_dog.state.value}' --energy {a_dog.needs.energy} --hunger {a_dog.needs.hunger} --boredom {a_dog.needs.boredom}"
+            logger.info(f"Running command in sandbox for {a_dog.name}: {cmd}")
+            exec_res = await sandbox.commands.run(cmd, timeout=2)
+            if exec_res.exit_code == 0:
+                try:
+                    output = json.loads(exec_res.stdout)
+                    if "error" in output:
+                        logger.error(f"Remote speak error for {a_dog.name}: {output['error']}")
+                        res = an_agent.get_mock_response()
+                    else:
+                        from barkland.agents.dog_agent import BarkResponse
+                        res = BarkResponse(bark=output["bark"], translation=output["translation"])
+                except Exception as json_err:
+                    logger.error(f"Failed to parse JSON from sandbox for {a_dog.name}: {json_err}. Raw output: {exec_res.stdout}")
+                    res = an_agent.get_mock_response()
+            else:
+                logger.error(f"Command failed in sandbox for {a_dog.name} with exit code {exec_res.exit_code}: {exec_res.stderr}")
+                res = an_agent.get_mock_response()
+        else:
+            logger.warning(f"No active sandbox or commands property for {a_dog.name}, falling back to local speak")
+            res = await an_agent.speak()
+        
+        logger.info(f"Speak completed for {a_dog.name} in {time.time() - start_time:.2f}s")
+        a_dog.latest_bark = f"{res.bark} <span style='font-weight: 600; color:#a855f7; display:block; margin-top:4px; font-size:0.8rem;'>({res.translation})</span>"
+    except Exception as e:
+        print(f"Agent speak error for {a_dog.name}: {e}")
+        res = an_agent.get_mock_response()
+        a_dog.latest_bark = f"{res.bark} <span style='font-weight: 600; color:#a855f7; display:block; margin-top:4px; font-size:0.8rem;'>({res.translation})</span>"
+
 
 @app.get("/api/dogs")
 def get_dogs():
@@ -193,7 +234,7 @@ async def start_simulation(req: StartSimulationRequest):
         for dog_name in list(sandbox_clients.keys()):
             sandbox = sandbox_clients.pop(dog_name, None)
             if sandbox and not isinstance(sandbox, dict):
-                threading.Thread(target=sandbox.terminate, daemon=True).start()
+                asyncio.create_task(sandbox.terminate())
         
         # 2. Reset Simulation and Agent pools
         sim.dogs.clear()
@@ -209,7 +250,7 @@ async def start_simulation(req: StartSimulationRequest):
     raise HTTPException(status_code=409, detail="Another simulation is already running right now. Please wait.")
 
 @app.post("/api/simulation/stop")
-def stop_simulation():
+async def stop_simulation():
     sim.is_running = False
     
     # Cleanup old sandbox claims fully to prevent leaks and race conditions
@@ -218,18 +259,12 @@ def stop_simulation():
         if sandbox:
             if not isinstance(sandbox, dict):
                 print(f"Terminating sandbox for {dog_name} on stop...")
-                threading.Thread(target=sandbox.terminate, daemon=True).start()
+                asyncio.create_task(sandbox.terminate())
             else:
                 claim_name = sandbox.get("claim_name")
-                if claim_name:
+                if claim_name and global_sandbox_client:
                     print(f"Deleting orphaned claim {claim_name} for {dog_name} on stop...")
-                    def delete_claim(name):
-                        import subprocess
-                        try:
-                            subprocess.run(["kubectl", "delete", "sandboxclaim", name, "-n", "barkland"], check=True, capture_output=True)
-                        except Exception as e:
-                            print(f"Failed to delete claim {name}: {e}")
-                    threading.Thread(target=delete_claim, args=(claim_name,), daemon=True).start()
+                    asyncio.create_task(global_sandbox_client.delete_sandbox(claim_name, namespace="barkland"))
         
     return {"status": "Simulation stopped and targeted cleanup initiated"}
 
@@ -326,9 +361,10 @@ async def run_simulation(names: List[str]):
         dog_agents[name] = DogAgent(dp)
          
         # Start Sandbox claim thread allocation layout triggers Accuracy creators layout inaccuracies
-        if SandboxClient:
-             print(f"Spawning sandbox thread for {name}")
-             creation_executor.submit(create_sandbox_for_dog, name)
+        if global_sandbox_client:
+             print(f"Spawning sandbox task for {name}")
+             sandbox_clients[name] = {"status": "Creating", "claim_name": f"barkland-sandbox-{name.lower()}"}
+             asyncio.create_task(create_sandbox_for_dog(name))
               
         # Broadcast immediately so UI renders this card individually layout Accurate triggers payout list Accurate setups
         await broadcast_state()
@@ -385,47 +421,7 @@ async def run_simulation(names: List[str]):
                 for name, dog in speaking_dogs:
                     agent = dog_agents.get(name)
                     if agent:
-                        def speak_and_update_thread(a_dog, an_agent):
-                            try:
-                                logger.info(f"Calling speak for {a_dog.name} in thread...")
-                                start_time = time.time()
-                                
-                                import json
-                                sandbox = sandbox_clients.get(a_dog.name)
-                                if sandbox and hasattr(sandbox, "commands") and sandbox.commands:
-                                    cmd = f"python -m barkland.agents.remote_speak --name '{a_dog.name}' --breed '{a_dog.breed}' --personality '{a_dog.personality.value}' --state '{a_dog.state.value}' --energy {a_dog.needs.energy} --hunger {a_dog.needs.hunger} --boredom {a_dog.needs.boredom}"
-                                    logger.info(f"Running command in sandbox for {a_dog.name}: {cmd}")
-                                    exec_res = sandbox.commands.run(cmd, timeout=5)
-                                    if exec_res.exit_code == 0:
-                                        try:
-                                            output = json.loads(exec_res.stdout)
-                                            if "error" in output:
-                                                logger.error(f"Remote speak error for {a_dog.name}: {output['error']}")
-                                                res = an_agent.get_mock_response()
-                                            else:
-                                                from barkland.agents.dog_agent import BarkResponse
-                                                res = BarkResponse(bark=output["bark"], translation=output["translation"])
-                                        except Exception as json_err:
-                                            logger.error(f"Failed to parse JSON from sandbox for {a_dog.name}: {json_err}. Raw output: {exec_res.stdout}")
-                                            res = an_agent.get_mock_response()
-                                    else:
-                                        logger.error(f"Command failed in sandbox for {a_dog.name} with exit code {exec_res.exit_code}: {exec_res.stderr}")
-                                        res = an_agent.get_mock_response()
-                                else:
-                                    logger.warning(f"No active sandbox or commands property for {a_dog.name}, falling back to local speak")
-                                    import asyncio
-                                    loop = asyncio.new_event_loop()
-                                    res = loop.run_until_complete(an_agent.speak())
-                                    loop.close()
-                                
-                                logger.info(f"Speak completed for {a_dog.name} in thread in {time.time() - start_time:.2f}s")
-                                a_dog.latest_bark = f"{res.bark} <span style='font-weight: 600; color:#a855f7; display:block; margin-top:4px; font-size:0.8rem;'>({res.translation})</span>"
-                            except Exception as e:
-                                print(f"Agent speak error for {a_dog.name} in thread: {e}")
-                                res = an_agent.get_mock_response()
-                                a_dog.latest_bark = f"{res.bark} <span style='font-weight: 600; color:#a855f7; display:block; margin-top:4px; font-size:0.8rem;'>({res.translation})</span>"
-                        
-                        speak_executor.submit(speak_and_update_thread, dog, agent)
+                        asyncio.create_task(speak_and_update(dog, agent))
 
 
         # Broadcast state every 3 ticks to avoid overloading the UI
@@ -440,8 +436,7 @@ async def run_simulation(names: List[str]):
     for dog_name in list(sandbox_clients.keys()):
         sandbox = sandbox_clients.pop(dog_name, None)
         if sandbox and not isinstance(sandbox, dict):
-            # Run in thread so exit deletion doesn't block async cleanup sequences
-            threading.Thread(target=sandbox.terminate, daemon=True).start()
+            asyncio.create_task(sandbox.terminate())
              
     await broadcast_state()
 

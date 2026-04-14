@@ -198,8 +198,9 @@ class SandboxConnector:
             status_forcelist=[500, 502, 503, 504],
             allowed_methods=["GET", "POST", "PUT", "DELETE"]
         )
-        self.session.mount("http://", HTTPAdapter(max_retries=retries))
-        self.session.mount("https://", HTTPAdapter(max_retries=retries))
+        adapter = HTTPAdapter(max_retries=retries, pool_connections=100, pool_maxsize=100)
+        self.session.mount("http://", adapter)
+        self.session.mount("https://", adapter)
         
 
     def _connection_strategy(self):
@@ -238,7 +239,8 @@ class SandboxConnector:
             headers["X-Sandbox-Port"] = str(self.connection_config.server_port)
             kwargs["headers"] = headers
 
-            kwargs['timeout'] = 5
+            if 'timeout' not in kwargs:
+                kwargs['timeout'] = 5
             response = self.session.request(method, url, **kwargs)
             response.raise_for_status()
             return response

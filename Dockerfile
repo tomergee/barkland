@@ -28,7 +28,7 @@ RUN mkdir -p barkland/models barkland/engine barkland/agents barkland/api barkla
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --upgrade pip && \
     pip install . && \
-    SETUPTOOLS_SCM_PRETEND_VERSION=0.1.0 pip install /app/agentic-sandbox-client
+    SETUPTOOLS_SCM_PRETEND_VERSION=0.1.0 pip install "/app/agentic-sandbox-client[async]"
 
 
 # Copy source code

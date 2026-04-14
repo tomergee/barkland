@@ -23,7 +23,7 @@ class DogAgent:
         # Initialize ADK Agent
         self.agent = LlmAgent(
             name=f"dog_agent_{self.profile.name.lower().replace(' ', '_').replace('.', '')}",
-            model="gemini-2.5-flash",
+            model="gemini-2.5-flash-lite",
             instruction=self.instruction,
             tools=[self.get_needs_tool(), self.get_surroundings_tool(), self.get_sniff_tool()],
             output_schema=BarkResponse,
@@ -77,20 +77,28 @@ When asked to action or bark:
               new_message = types.Content(parts=[types.Part(text=prompt)])
               
               from google.adk.utils.context_utils import Aclosing
-              async with Aclosing(runner.run_async(
-                  user_id="user",
-                  session_id="session_1",
-                  new_message=new_message,
-              )) as agen:
-                  async for event in agen:
-                      if event.actions and event.actions.state_delta:
-                          res = event.actions.state_delta.get("bark_response")
-                          if res:
-                              if isinstance(res, dict):
-                                  return BarkResponse(bark=res.get("bark"), translation=res.get("translation"))
-                              return res
+              import asyncio
               
-              raise Exception("Failed to get bark response from ADK")
+              async def _run():
+                  async with Aclosing(runner.run_async(
+                      user_id="user",
+                      session_id="session_1",
+                      new_message=new_message,
+                  )) as agen:
+                      async for event in agen:
+                          if event.actions and event.actions.state_delta:
+                              res = event.actions.state_delta.get("bark_response")
+                              if res:
+                                  if isinstance(res, dict):
+                                      return BarkResponse(bark=res.get("bark"), translation=res.get("translation"))
+                                  return res
+                  raise Exception("Failed to get bark response from ADK")
+              
+              try:
+                  return await asyncio.wait_for(_run(), timeout=2.0)
+              except asyncio.TimeoutError:
+                  print("Gemini call timed out, falling back to mock")
+                  return self.get_mock_response()
          except Exception as e:
               print(f"ADK error: {e}")
               raise e

@@ -27,7 +27,7 @@ class CommandExecutor:
         self.trace_service_name = trace_service_name
 
     @trace_span("run")
-    def run(self, command: str, timeout: int = 60) -> ExecutionResult:
+    def run(self, command: str, timeout: int = 10) -> ExecutionResult:
         span = trace.get_current_span()
         if span.is_recording():
             span.set_attribute("sandbox.command", command)
