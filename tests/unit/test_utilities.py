@@ -1,6 +1,6 @@
 import pytest
 import unittest.mock as mock
-from barkland.main import generate_unique_dog_names
+from barkland.services.simulation_manager import generate_unique_dog_names
 from barkland.models.dog import DogProfile, DogState, Personality, DogNeeds
 from barkland.agents.dog_agent import DogAgent, BarkResponse
 

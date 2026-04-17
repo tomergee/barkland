@@ -40,4 +40,8 @@ def live_server_url():
     yield url
     
     process.terminate()
-    process.wait()
+    try:
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait()
