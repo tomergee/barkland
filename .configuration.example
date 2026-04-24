@@ -66,4 +66,4 @@ SPEAK_BATCH_SIZE="15"
 # 4. Kubernetes / Sandbox Integration
 # ------------------------------------------
 # Overrides the router URL when running with the K8s Orchestrator
-# SANDBOX_ROUTER_URL="http://sandbox-router-svc:8080"
+# SANDBOX_ROUTER_URL="http://sandbox-router-svc:8000"

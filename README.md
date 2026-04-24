@@ -34,8 +34,8 @@ The system consists of the following components:
 *   **Asynchronous Orchestration**: Migrated from blocking thread pools to native `asyncio` for sandbox management and agent interactions, significantly improving concurrency and scaling capabilities.
 *   **Inference Optimization**:
     *   **Reduced Latency**: Eliminated tool-based state lookups (e.g., `needs`, `smells`) to remove multi-turn LLM round-trips.
-    *   **Prompt Inlining**: Inlined agent state and environment context directly into the system prompt for immediate reactivity.
-    *   **Token Limiting**: Constrained agent responses to `max_output_tokens=200` to reduce Time to First Token (TTFT) and cost.
+    *   **Prompt Inlining**: Inlined agent state and environment context directly into the per-call user prompt for immediate reactivity.
+    *   **Token Limiting**: Constrained agent responses to `max_output_tokens=250` to reduce Time to First Token (TTFT) and cost.
 *   **Vertex AI Integration**:
     *   Configurable via `.configuration` with `USE_VERTEX_AI="true"`.
     *   Automatically constructs full resource paths for models to leverage Vertex AI enterprise quotas.
@@ -248,9 +248,10 @@ chmod +x ./scripts/deploy.sh
 1.  **Sync Credentials**: Authenticates `kubectl` to your target GKE cluster.
 2.  **Namespace**: Checks for and creates the `barkland` namespace.
 3.  **Secrets Management**: Reads `$GEMINI_API_KEY` from your local environment and creates a generic Kubernetes secret (`gemini-api-key`) in the cluster.
-8.  **Build & Push Images**: Executes `./scripts/push-images` to compile your containers and push to Artifact Registry.
-9.  **Manifest Apply**: Employs `envsubst` to inject properties (like `WARMPOOL_REPLICAS` and `NAMESPACE`) from `.configuration` into the YAML definitions (e.g., `k8s/sandbox_warmpool.yaml` and `k8s/sandbox_template.yaml`) before overlaying them into the cluster space.
-10. **Rollout Verification**: Waits for readiness confirmations for critical containers and verifies the `SandboxWarmPool` status.
+4.  **Install agent-sandbox**: Installs the `agent-sandbox` controller and extensions from the official GitHub release (or from a local source if `USE_LOCAL_AGENT_SANDBOX="true"`).
+5.  **Build & Push Images**: Executes `./scripts/push-images` to compile your containers and push to Artifact Registry.
+6.  **Manifest Apply**: Employs `envsubst` to inject properties (like `WARMPOOL_REPLICAS` and `NAMESPACE`) from `.configuration` into the YAML definitions (e.g., `k8s/sandbox_warmpool.yaml` and `k8s/sandbox_template.yaml`) before overlaying them into the cluster space.
+7.  **Rollout Verification**: Waits for readiness confirmations for critical containers and verifies the `SandboxWarmPool` status.
 
 ---
 
@@ -281,7 +282,7 @@ Retrieve your dashboard endpoint:
 # Obtain the external IP address
 kubectl get svc barkland-orchestrator -n barkland
 ```
-Visit the reported IP in your browser browser to interact with the dashboard dashboard directly!
+Visit the reported IP in your browser to interact with the dashboard directly!
 
 ---
 

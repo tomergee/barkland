@@ -73,7 +73,7 @@ fi
 
 ./scripts/push-images --image-prefix=${REGISTRY_LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/ --extra-image-tag latest
 
-echo "=== [4/5] Applying Kubernetes Manifests ==="
+echo "=== [6/6] Applying Kubernetes Manifests ==="
 # Provide defaults for simulation variables if not set
 export SPEED_MS=${SPEED_MS:-1000}
 export SPEAK_BATCH_SIZE=${SPEAK_BATCH_SIZE:-50}
